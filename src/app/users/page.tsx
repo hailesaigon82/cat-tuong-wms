@@ -99,10 +99,10 @@ export default function UsersPage() {
       {loading ? (
         <div className="text-center text-gray-400 py-8 text-sm">Đang tải...</div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1">
           {users.map((u) => (
-            <Card key={u.id} className="mb-0">
-              <div className="p-3.5 flex items-center justify-between gap-2">
+            <Card key={u.id} className="!mb-0">
+              <div className="px-2.5 py-1.5 flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium text-gray-800">{u.name}</span>

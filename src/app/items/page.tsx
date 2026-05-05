@@ -102,7 +102,7 @@ export default function ItemsPage() {
       {loading ? (
         <div className="text-center text-gray-400 py-8 text-sm">Đang tải...</div>
       ) : (
-        <div className="flex flex-col gap-0">
+        <div className="flex flex-col gap-1">
           {filtered.map((i) => {
             const low = i.qty < i.minQty;
             return (
