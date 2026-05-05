@@ -104,9 +104,11 @@ export async function apiFetch<T = unknown>(
       headers["Authorization"] = `Bearer ${newToken}`;
       res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
     } else {
-      // Refresh thất bại → về login
+      // Refresh thất bại → clear token, về login nếu chưa ở trang login
       tokenStorage.clear();
-      window.location.href = "/login";
+      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
+        window.location.href = "/login";
+      }
       throw new ApiError(401, "Phiên đăng nhập hết hạn");
     }
   }
