@@ -120,11 +120,19 @@ export async function apiFetch<T = unknown>(
 
   if (!res.ok) {
     const errData = data as any;
-    throw new ApiError(
-      res.status,
-      errData?.message ?? `HTTP ${res.status}`,
-      data
-    );
+    // Map HTTP status sang message thân thiện
+    const friendlyMessages: Record<number, string> = {
+      400: errData?.message ?? "Dữ liệu không hợp lệ",
+      401: errData?.message ?? "Tên đăng nhập hoặc mật khẩu không đúng",
+      403: errData?.message ?? "Bạn không có quyền thực hiện thao tác này",
+      404: errData?.message ?? "Không tìm thấy dữ liệu",
+      429: errData?.message ?? "Quá nhiều yêu cầu, vui lòng thử lại sau",
+      500: "Lỗi máy chủ, vui lòng thử lại sau giây lát",
+      502: "Máy chủ đang khởi động, vui lòng thử lại sau 10 giây",
+      503: "Dịch vụ tạm thời không khả dụng, vui lòng thử lại",
+    };
+    const message = friendlyMessages[res.status] ?? errData?.message ?? `Lỗi ${res.status}`;
+    throw new ApiError(res.status, message, data);
   }
 
   return data as T;
