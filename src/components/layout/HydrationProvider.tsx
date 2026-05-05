@@ -5,6 +5,7 @@ import { useAppStore } from "@/store";
 
 export function HydrationProvider({ children }: { children: React.ReactNode }) {
   const hydrate = useAppStore((s) => s.hydrate);
+  const currentUser = useAppStore((s) => s.currentUser);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -16,10 +17,15 @@ export function HydrationProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    hydrate().finally(() => {
+    // Có user persisted thì render ngay, refresh /auth/me ở nền.
+    if (currentUser) {
       setReady(true);
-    });
-  }, [hydrate]);
+      hydrate();
+      return;
+    }
+
+    hydrate().finally(() => setReady(true));
+  }, [currentUser, hydrate]);
 
   if (!ready) {
     return (
