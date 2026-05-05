@@ -38,13 +38,16 @@ export function Sidebar({ onClose }: SidebarProps) {
     <aside className="w-[220px] bg-[#1a1a2e] text-white flex flex-col h-screen">
       {/* Logo + close button (mobile) */}
       <div className="px-4 py-4 border-b border-white/10 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+        >
           <span className="text-2xl">🌸</span>
           <div>
             <div className="text-sm font-bold leading-tight">Cát Tường</div>
             <div className="text-[10px] text-gray-400 uppercase tracking-widest">WMS</div>
           </div>
-        </div>
+        </button>
         {/* Nút đóng chỉ hiện trên mobile */}
         {onClose && (
           <button
