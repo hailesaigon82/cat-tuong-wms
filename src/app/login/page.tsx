@@ -27,16 +27,12 @@ export default function LoginPage() {
     await login(username, password);
   };
 
-  const handleQRScan = (data: string) => {
-    // QR user format: USER-username
-    if (data.startsWith("USER-")) {
-      const scannedUsername = data.replace("USER-", "");
-      setUsername(scannedUsername);
-      setShowScanner(false);
-      // Auto focus password field
-      setTimeout(() => document.getElementById("password")?.focus(), 100);
-    }
-  };
+const handleQRScan = (data: string) => {
+  const username = data.startsWith("USER-") ? data.replace("USER-", "") : data;
+  setUsername(username);
+  setShowScanner(false);
+  setTimeout(() => document.getElementById("password")?.focus(), 100);
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] p-4">
@@ -54,11 +50,10 @@ export default function LoginPage() {
         {showScanner ? (
           <div className="mb-4">
             <QRScanner
-              onScan={handleQRScan}
-              prefix="USER-"
-              onClose={() => setShowScanner(false)}
-              label="Hướng mã QR vào camera để tự điền tên đăng nhập"
-            />
+  		onScan={handleQRScan}
+  		onClose={() => setShowScanner(false)}
+  		label="Hướng mã QR vào camera để tự điền tên đăng nhập"
+	    />
           </div>
         ) : (
           <button
