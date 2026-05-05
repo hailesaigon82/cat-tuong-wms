@@ -2,7 +2,15 @@
 
 Tài liệu này đối chiếu nhu cầu API của frontend trong `docs/fe-api-needs.md` với inventory backend trong `docs/be-api-inventory.md`.
 
-Cập nhật ghi chú: backend source hiện có một số thay đổi mới hơn inventory doc:
+Cập nhật sau review FE:
+
+- FE đã model `AuthUser.allowedCategoryIds` trong `src/types/api.ts` và dùng `AuthUser` cho login/hydrate store.
+- FE đã đổi form thêm hàng hóa sang `GET /items/categories?action=create`.
+- FE đã validate bắt buộc ghi chú khi tạo transaction `type === "adj"`.
+- FE đã bỏ fallback category mặc định `1` trong form thêm hàng hóa và thêm trạng thái chọn danh mục rõ ràng.
+- FE đã bỏ timeout hydrate 5 giây để tránh redirect sai về login khi backend cold start.
+
+Ghi chú BE: backend source hiện có một số thay đổi mới hơn `docs/be-api-inventory.md`:
 
 - `POST /api/v1/auth/login` đã trả `user.isActive`.
 - `GET /api/v1/auth/me` reload `permissions` và `allowedCategoryIds` từ DB.
@@ -31,8 +39,8 @@ Quy ước trạng thái:
 
 | ID | FE page/feature | FE user action | FE needed API | Matching BE API | Status | Issue | Recommended action | Owner | Priority |
 |---|---|---|---|---|---|---|---|---|---|
-| AUTH-01 | `/login` - đăng nhập | Nhập username/password và bấm đăng nhập | `POST /auth/login` | `POST /api/v1/auth/login` | Match | BE source đã trả đủ các field FE cần: token, `expiresIn`, `user.id/name/username/isActive/role/permissions`. BE còn trả thêm `allowedCategoryIds`. | FE có thể cập nhật type để dùng thêm `allowedCategoryIds`; không cần đổi BE cho nhu cầu login hiện tại. | FE | P2 |
-| AUTH-02 | Auth bootstrap - khôi phục session | Refresh/mở lại app khi có token | `GET /auth/me` | `GET /api/v1/auth/me` | Match | BE source reload user, role permissions và `allowedCategoryIds` từ DB, đáp ứng nhu cầu FE về thông tin user/quyền mới nhất. | Không cần đổi API. FE nên model `allowedCategoryIds` trong type nếu muốn dùng field này. | FE | P2 |
+| AUTH-01 | `/login` - đăng nhập | Nhập username/password và bấm đăng nhập | `POST /auth/login` | `POST /api/v1/auth/login` | Match | BE source đã trả đủ các field FE cần: token, `expiresIn`, `user.id/name/username/isActive/role/permissions`. BE còn trả thêm `allowedCategoryIds`, và FE đã model field này trong `AuthUser`. | Không cần đổi thêm. | None | P2 |
+| AUTH-02 | Auth bootstrap - khôi phục session | Refresh/mở lại app khi có token | `GET /auth/me` | `GET /api/v1/auth/me` | Match | BE source reload user, role permissions và `allowedCategoryIds` từ DB. FE đã dùng `AuthUser` cho `/auth/me` nên contract này đã được type hóa. | Không cần đổi thêm. | None | P2 |
 | AUTH-03 | API client - refresh token | Request authenticated gặp 401 | `POST /auth/refresh` | `POST /api/v1/auth/refresh` | Match | BE trả `accessToken`, `expiresIn`; FE chỉ cần `accessToken`. | Không cần đổi. | None | P2 |
 | AUTH-04 | Sidebar/AppShell - logout | Bấm `Đăng xuất` | `POST /auth/logout` | `POST /api/v1/auth/logout` | Match | Request body và response success phù hợp. | Không cần đổi. | None | P2 |
 | DASH-01 | `/dashboard` - KPI tổng quan | Mở dashboard | `GET /transactions/summary` | `GET /api/v1/transactions/summary` | Match | Response fields khớp nhu cầu KPI và low-stock list. | Không cần đổi. | None | P2 |
@@ -68,6 +76,14 @@ Quy ước trạng thái:
 Không có P0 theo tài liệu FE và source BE hiện tại. Chưa thấy gap nào làm toàn bộ FE không thể chạy nếu backend behavior đúng như source đã đọc.
 
 Không còn mục P1 sau khi đối chiếu lại source BE và cập nhật FE. Các gap còn lại đều là P2 hoặc optional.
+
+Các mục từng là gap FE và đã đóng:
+
+| ID | Đã xử lý |
+|---|---|
+| AUTH-05 | FE đã thêm `AuthUser.allowedCategoryIds` và dùng cho login/hydrate. |
+| ITEM-02 | FE đã gọi `/items/categories?action=create` và không fallback `categoryId=1`. |
+| TX-ADJ-02 | FE đã chặn submit adjustment nếu thiếu ghi chú. |
 
 ## Backend APIs Not Used By Frontend
 

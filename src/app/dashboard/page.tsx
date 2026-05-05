@@ -18,21 +18,30 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [recent, setRecent]   = useState<ApiTransaction[]>([]);
   const [error, setError]     = useState("");
+  const [recentError, setRecentError] = useState("");
+  const [recentLoading, setRecentLoading] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [sum, txRes] = await Promise.all([
-          api.get<DashboardSummary>("/transactions/summary"),
-          api.get<{ data: ApiTransaction[] }>("/transactions?limit=8"),
-        ]);
+        const sum = await api.get<DashboardSummary>("/transactions/summary");
         setSummary(sum);
-        setRecent(txRes.data);
       } catch (e) {
         setError(e instanceof ApiError ? e.message : "Không thể tải dữ liệu");
+        return;
       } finally {
         setLoading(false);
+      }
+
+      try {
+        const txRes = await api.get<{ data: ApiTransaction[] }>("/transactions?limit=8");
+        setRecent(txRes.data);
+        setRecentError("");
+      } catch (e) {
+        setRecentError(e instanceof ApiError ? e.message : "Không thể tải giao dịch gần đây");
+      } finally {
+        setRecentLoading(false);
       }
     }
     load();
@@ -74,8 +83,11 @@ export default function DashboardPage() {
       {/* Recent transactions — card list */}
       <Card>
         <CardHeader title="Giao dịch gần đây" />
+        {recentError && <div className="px-4 pt-3"><Alert type="warning" message={recentError} /></div>}
         <div className="divide-y divide-gray-100">
-          {recent.map((t) => (
+          {recentLoading ? (
+            <div className="text-center text-gray-400 py-8 text-sm">Đang tải giao dịch...</div>
+          ) : recent.map((t) => (
             <div key={t.id} className="px-4 py-3 flex items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-gray-800 truncate">{t.item?.name}</div>
@@ -91,7 +103,7 @@ export default function DashboardPage() {
               </div>
             </div>
           ))}
-          {recent.length === 0 && (
+          {!recentLoading && recent.length === 0 && (
             <div className="text-center text-gray-400 py-8 text-sm">Chưa có giao dịch nào</div>
           )}
         </div>

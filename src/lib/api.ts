@@ -1,5 +1,6 @@
 // src/lib/api.ts
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+const DEFAULT_TIMEOUT_MS = 30000;
 
 // ─── Token storage ────────────────────────────────────────────────────────
 export const tokenStorage = {
@@ -25,6 +26,34 @@ export class ApiError extends Error {
   }
 }
 
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const sourceSignal = init.signal;
+
+  const abortFromSource = () => controller.abort();
+  if (sourceSignal) {
+    if (sourceSignal.aborted) controller.abort();
+    else sourceSignal.addEventListener("abort", abortFromSource, { once: true });
+  }
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError(0, "Yêu cầu quá lâu, vui lòng thử lại");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+    sourceSignal?.removeEventListener("abort", abortFromSource);
+  }
+}
+
 // ─── Refresh token ────────────────────────────────────────────────────────
 let isRefreshing = false;
 let refreshQueue: Array<(token: string | null) => void> = [];
@@ -39,7 +68,7 @@ async function refreshAccessToken(): Promise<string | null> {
 
   isRefreshing = true;
   try {
-    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+    const res = await fetchWithTimeout(`${BASE_URL}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
@@ -80,32 +109,45 @@ function getFriendlyMessage(status: number, serverMessage?: string): string {
 interface FetchOptions extends RequestInit {
   skipAuth?: boolean;       // true → không gửi token, không auto-refresh
   skipRefresh?: boolean;    // true → có gửi token nhưng không auto-refresh khi 401
+  timeoutMs?: number;
 }
 
 export async function apiFetch<T = unknown>(
   path: string,
   options: FetchOptions = {}
 ): Promise<T> {
-  const { skipAuth = false, skipRefresh = false, ...init } = options;
+  const { skipAuth = false, skipRefresh = false, timeoutMs = DEFAULT_TIMEOUT_MS, ...init } = options;
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(init.headers as Record<string, string>),
-  };
+  const headers = new Headers(init.headers);
+
+  if (init.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
 
   if (!skipAuth) {
     const token = tokenStorage.getAccess();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (token) headers.set("Authorization", `Bearer ${token}`);
   }
 
-  let res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(`${BASE_URL}${path}`, { ...init, headers }, timeoutMs);
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw new ApiError(0, "Không thể kết nối máy chủ, vui lòng thử lại");
+  }
 
   // Auto-refresh khi token hết hạn — KHÔNG áp dụng cho auth routes
   if (res.status === 401 && !skipAuth && !skipRefresh) {
     const newToken = await refreshAccessToken();
     if (newToken) {
-      headers["Authorization"] = `Bearer ${newToken}`;
-      res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
+      headers.set("Authorization", `Bearer ${newToken}`);
+      try {
+        res = await fetchWithTimeout(`${BASE_URL}${path}`, { ...init, headers }, timeoutMs);
+      } catch (err) {
+        if (err instanceof ApiError) throw err;
+        throw new ApiError(0, "Không thể kết nối máy chủ, vui lòng thử lại");
+      }
     } else {
       // Refresh thất bại → về login, nhưng KHÔNG redirect nếu đang ở /login
       tokenStorage.clear();
