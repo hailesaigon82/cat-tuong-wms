@@ -7,12 +7,12 @@ import { Button, Alert, Input, FormGroup } from "@/components/ui";
 import { QRScanner } from "@/components/qr/QRScanner";
 
 export default function LoginPage() {
-  const login      = useAppStore((s) => s.login);
-  const isLoading  = useAppStore((s) => s.isLoading);
-  const error      = useAppStore((s) => s.error);
-  const clearError = useAppStore((s) => s.clearError);
+  const login       = useAppStore((s) => s.login);
+  const isLoading   = useAppStore((s) => s.isLoading);
+  const error       = useAppStore((s) => s.error);
+  const clearError  = useAppStore((s) => s.clearError);
   const currentUser = useAppStore((s) => s.currentUser);
-  const router     = useRouter();
+  const router      = useRouter();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +22,6 @@ export default function LoginPage() {
     if (currentUser) router.replace("/dashboard");
   }, [currentUser, router]);
 
-  // Clear error khi unmount
   useEffect(() => {
     clearError();
     return () => clearError();
@@ -34,20 +33,16 @@ export default function LoginPage() {
   };
 
   const handleQRScan = (data: string) => {
-    // QR user format: USER-username
-    if (data.startsWith("USER-")) {
-      const scannedUsername = data.replace("USER-", "");
-      setUsername(scannedUsername);
-      setShowScanner(false);
-      // Auto focus password field
-      setTimeout(() => document.getElementById("password")?.focus(), 100);
-    }
+    // Hỗ trợ cả "USER-admin" lẫn "admin"
+    const scanned = data.startsWith("USER-") ? data.replace("USER-", "") : data;
+    setUsername(scanned);
+    setShowScanner(false);
+    setTimeout(() => document.getElementById("password")?.focus(), 100);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] p-4">
       <div className="bg-white rounded-2xl p-9 w-full max-w-sm shadow-2xl">
-        {/* Logo */}
         <div className="text-center mb-7">
           <div className="text-5xl mb-3">🌸</div>
           <h1 className="text-xl font-bold text-[#1a1a2e] tracking-tight">Cát Tường WMS</h1>
@@ -56,12 +51,11 @@ export default function LoginPage() {
 
         {error && <div className="mb-4"><Alert type="error" message={error} /></div>}
 
-        {/* QR Scanner */}
         {showScanner ? (
           <div className="mb-4">
             <QRScanner
               onScan={handleQRScan}
-              prefix="USER-"
+              // Không set prefix — chấp nhận mọi QR code
               onClose={() => setShowScanner(false)}
               label="Hướng mã QR vào camera để tự điền tên đăng nhập"
             />
@@ -86,7 +80,6 @@ export default function LoginPage() {
           <span className="relative bg-white px-3">hoặc nhập thủ công</span>
         </div>
 
-        {/* Form */}
         <div className="flex flex-col gap-3 mb-5">
           <FormGroup label="Tên đăng nhập">
             <Input
