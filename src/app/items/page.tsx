@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAppStore } from "@/store";
 import { AppShell } from "@/components/layout/AppShell";
-import { Button, Badge, Card, CardHeader, Table, Th, Td, Modal, FormGroup, Input, Select, Alert } from "@/components/ui";
+import { Button, Badge, Card, CardHeader, Modal, FormGroup, Input, Select, Alert } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { fmtCurrency } from "@/lib/utils";
 import type { ApiItem, ApiCategory } from "@/types/api";
@@ -12,15 +12,15 @@ type ModalState = { type: "none" } | { type: "add" } | { type: "edit"; item: Api
 
 export default function ItemsPage() {
   const can = useAppStore((s) => s.can);
-  const [items, setItems]         = useState<ApiItem[]>([]);
+  const [items, setItems]           = useState<ApiItem[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
-  const [search, setSearch]       = useState("");
-  const [loading, setLoading]     = useState(true);
-  const [pageError, setPageError] = useState("");
-  const [modal, setModal]         = useState<ModalState>({ type: "none" });
-  const [formError, setFormError] = useState("");
-  const [saving, setSaving]       = useState(false);
-  const [form, setForm]           = useState({ categoryId: 1, name: "", code: "", unit: "cái", qty: 0, unitPrice: 0, minQty: 5 });
+  const [search, setSearch]         = useState("");
+  const [loading, setLoading]       = useState(true);
+  const [pageError, setPageError]   = useState("");
+  const [modal, setModal]           = useState<ModalState>({ type: "none" });
+  const [formError, setFormError]   = useState("");
+  const [saving, setSaving]         = useState(false);
+  const [form, setForm]             = useState({ categoryId: 1, name: "", code: "", unit: "cái", qty: 0, unitPrice: 0, minQty: 5 });
 
   const loadItems = useCallback(async () => {
     try {
@@ -35,12 +35,12 @@ export default function ItemsPage() {
 
   useEffect(() => {
     loadItems();
-    // Load categories cho form
     api.get<ApiCategory[]>("/items/categories").then(setCategories).catch(() => {});
   }, [loadItems]);
 
   const filtered = items.filter(
-    (i) => i.name.toLowerCase().includes(search.toLowerCase()) || i.code.toLowerCase().includes(search.toLowerCase())
+    (i) => i.name.toLowerCase().includes(search.toLowerCase()) ||
+           i.code.toLowerCase().includes(search.toLowerCase())
   );
 
   const openAdd = () => {
@@ -74,74 +74,83 @@ export default function ItemsPage() {
   };
 
   const handleDelete = async (id: number, code: string) => {
-    if (!confirm(`Bạn có chắc muốn xóa hàng hóa ${code}?`)) return;
-    try {
-      await api.delete(`/items/${id}`);
-      await loadItems();
-    } catch (e) {
-      alert(e instanceof ApiError ? e.message : "Xóa thất bại");
-    }
+    if (!confirm(`Xóa hàng hóa ${code}?`)) return;
+    try { await api.delete(`/items/${id}`); await loadItems(); }
+    catch (e) { alert(e instanceof ApiError ? e.message : "Xóa thất bại"); }
   };
 
   return (
     <AppShell title="Hàng hóa">
-      <div className="flex gap-3 mb-4">
-        <Input className="flex-1 max-w-sm" placeholder="Tìm theo tên hoặc mã hàng..."
+      {/* Search + Add */}
+      <div className="flex gap-2 mb-4">
+        <Input className="flex-1" placeholder="Tìm theo tên hoặc mã hàng..."
           value={search} onChange={(e) => setSearch(e.target.value)} />
-        {can("create_items") && <Button variant="primary" onClick={openAdd}>+ Thêm hàng hóa</Button>}
+        {can("create_items") && (
+          <Button variant="primary" size="sm" onClick={openAdd}>+ Thêm</Button>
+        )}
       </div>
 
       {pageError && <div className="mb-4"><Alert type="error" message={pageError} /></div>}
 
-      <Card>
-        <CardHeader title={`Danh sách hàng hóa (${filtered.length})`} />
-        {loading ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Đang tải...</div>
-        ) : (
-          <Table>
-            <thead>
-              <tr><Th>Mã hàng</Th><Th>Tên hàng</Th><Th>Danh mục</Th><Th>ĐVT</Th><Th>Tồn kho</Th><Th>Đơn giá</Th><Th>Thành tiền</Th>
-                {(can("edit_items") || can("delete_items")) && <Th>Thao tác</Th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((i) => {
-                const low = i.qty < i.minQty;
-                return (
-                  <tr key={i.id} className="hover:bg-gray-50">
-                    <Td><Badge variant={i.category.code}>{i.code}</Badge></Td>
-                    <Td>{i.name}</Td>
-                    <Td><span className="text-xs text-gray-500">{i.category.name}</span></Td>
-                    <Td>{i.unit}</Td>
-                    <Td><span className={low ? "text-[#A32D2D] font-semibold" : ""}>{i.qty}{low ? " ⚠️" : ""}</span></Td>
-                    <Td>{fmtCurrency(i.unitPrice)}</Td>
-                    <Td>{fmtCurrency(i.qty * i.unitPrice)}</Td>
+      {loading ? (
+        <div className="text-center text-gray-400 py-8 text-sm">Đang tải...</div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {filtered.map((i) => {
+            const low = i.qty < i.minQty;
+            return (
+              <Card key={i.id} className="mb-0">
+                <div className="p-3.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Badge variant={i.category.code}>{i.code}</Badge>
+                      <span className="text-sm font-medium text-gray-800 truncate">{i.name}</span>
+                    </div>
                     {(can("edit_items") || can("delete_items")) && (
-                      <Td>
-                        <div className="flex gap-1.5">
-                          {can("edit_items") && <Button size="sm" onClick={() => openEdit(i)}>Sửa</Button>}
-                          {can("delete_items") && <Button size="sm" variant="danger" onClick={() => handleDelete(i.id, i.code)}>Xóa</Button>}
-                        </div>
-                      </Td>
+                      <div className="flex gap-1 flex-shrink-0">
+                        {can("edit_items") && <Button size="sm" onClick={() => openEdit(i)}>Sửa</Button>}
+                        {can("delete_items") && <Button size="sm" variant="danger" onClick={() => handleDelete(i.id, i.code)}>Xóa</Button>}
+                      </div>
                     )}
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && !loading && (
-                <tr><td className="text-center text-gray-400 py-8 text-sm" colSpan={8}>Không có hàng hóa nào</td></tr>
-              )}
-            </tbody>
-          </Table>
-        )}
-      </Card>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-500">
+                    <div>
+                      <div className="text-gray-400">Tồn kho</div>
+                      <div className={`font-semibold ${low ? "text-[#A32D2D]" : "text-gray-800"}`}>
+                        {i.qty} {i.unit}{low ? " ⚠️" : ""}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-gray-400">Đơn giá</div>
+                      <div className="font-semibold text-gray-800">{fmtCurrency(i.unitPrice)}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-400">Thành tiền</div>
+                      <div className="font-semibold text-gray-800">{fmtCurrency(i.qty * i.unitPrice)}</div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+          {filtered.length === 0 && (
+            <div className="text-center text-gray-400 py-8 text-sm">Không có hàng hóa nào</div>
+          )}
+        </div>
+      )}
 
+      {/* Add/Edit Modal */}
       {(modal.type === "add" || modal.type === "edit") && (
-        <Modal title={modal.type === "add" ? "Thêm hàng hóa mới" : "Chỉnh sửa hàng hóa"}
+        <Modal
+          title={modal.type === "add" ? "Thêm hàng hóa mới" : "Chỉnh sửa hàng hóa"}
           onClose={() => setModal({ type: "none" })}
           footer={<>
             <Button onClick={() => setModal({ type: "none" })}>Hủy</Button>
-            <Button variant="primary" onClick={saveItem} disabled={saving}>{saving ? "Đang lưu..." : modal.type === "add" ? "Lưu" : "Cập nhật"}</Button>
-          </>}>
+            <Button variant="primary" onClick={saveItem} disabled={saving}>
+              {saving ? "Đang lưu..." : modal.type === "add" ? "Lưu" : "Cập nhật"}
+            </Button>
+          </>}
+        >
           {formError && <div className="mb-4"><Alert type="error" message={formError} /></div>}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
