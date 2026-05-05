@@ -74,6 +74,10 @@ src/
 - **jsQR** (quét QR từ camera)
 - **lucide-react** (icons)
 
+## 🧭 Frontend instructions
+
+Xem [FRONTEND_INSTRUCTIONS.md](./FRONTEND_INSTRUCTIONS.md) để nắm quy tắc làm việc cho FE: auth/API flow, phân quyền, QR, responsive UI và workflow kiểm tra trước khi deploy.
+
 ## 📦 Build production
 
 ```bash

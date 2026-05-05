@@ -16,11 +16,16 @@ export interface ApiUser {
   createdAt?: string;
 }
 
+export type AuthUser = ApiUser & {
+  permissions: string[];
+  allowedCategoryIds: number[];
+};
+
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
   expiresIn: string;
-  user: ApiUser & { permissions: string[] };
+  user: AuthUser;
 }
 
 export interface ApiCategory {

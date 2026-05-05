@@ -2,10 +2,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { api, tokenStorage, ApiError } from "@/lib/api";
-import type { LoginResponse, ApiUser } from "@/types/api";
+import type { LoginResponse, AuthUser } from "@/types/api";
 
 interface AuthStore {
-  currentUser: (ApiUser & { permissions: string[] }) | null;
+  currentUser: AuthUser | null;
   isLoading: boolean;
   error: string | null;
   login: (username: string, password: string) => Promise<boolean>;
@@ -62,7 +62,7 @@ export const useAppStore = create<AuthStore>()(
         if (!token) return; // Không có token → không cần hydrate
 
         try {
-          const user = await api.get<ApiUser & { permissions: string[] }>("/auth/me");
+          const user = await api.get<AuthUser>("/auth/me");
           set({ currentUser: user });
         } catch (err) {
           // Token hết hạn hoặc lỗi → clear, nhưng KHÔNG set error (tránh hiện lỗi ở login page)

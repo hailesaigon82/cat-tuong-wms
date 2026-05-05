@@ -42,7 +42,7 @@ export default function ItemsPage() {
 
   useEffect(() => {
     loadItems();
-    api.get<ApiCategory[]>("/items/categories").then(setCategories).catch(() => {});
+    api.get<ApiCategory[]>("/items/categories?action=create").then(setCategories).catch(() => {});
   }, [loadItems]);
 
   const filtered = items.filter(
@@ -64,6 +64,7 @@ export default function ItemsPage() {
 
   const saveItem = async () => {
     if (!form.name.trim() || !form.code.trim()) { setFormError("Vui lòng nhập tên và mã hàng"); return; }
+    if (modal.type === "add" && !form.categoryId) { setFormError("Vui lòng chọn danh mục"); return; }
     setSaving(true); setFormError("");
     try {
       if (modal.type === "edit") {

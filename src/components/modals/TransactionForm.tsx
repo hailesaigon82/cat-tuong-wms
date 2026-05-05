@@ -1,7 +1,6 @@
 // src/components/modals/TransactionForm.tsx
 "use client";
 import { useState, useEffect } from "react";
-import { useAppStore } from "@/store";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button, Alert, Card, FormGroup, Select, Input, Textarea } from "@/components/ui";
 import { QRScanner } from "@/components/qr/QRScanner";
@@ -54,6 +53,7 @@ export function TransactionForm({ type }: { type: TransactionType }) {
     if (!selectedItem) { setAlert({ msg: "Vui lòng chọn hàng hóa", type: "error" }); return; }
     const qtyNum = parseInt(qty) || 0;
     if (qtyNum <= 0) { setAlert({ msg: "Số lượng phải lớn hơn 0", type: "error" }); return; }
+    if (type === "adj" && !note.trim()) { setAlert({ msg: "Vui lòng nhập lý do điều chỉnh tồn kho", type: "error" }); return; }
     setSaving(true); setAlert(null);
     try {
       const res = await api.post<{ newQty: number }>("/transactions", {
