@@ -1,14 +1,20 @@
 // src/components/layout/HydrationProvider.tsx
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store";
 
 export function HydrationProvider({ children }: { children: React.ReactNode }) {
   const hydrate = useAppStore((s) => s.hydrate);
   const currentUser = useAppStore((s) => s.currentUser);
+  const hasHydrated = useAppStore((s) => s.hasHydrated);
+  const didBootstrap = useRef(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    if (!hasHydrated) return;
+    if (didBootstrap.current) return;
+    didBootstrap.current = true;
+
     // Nếu không có token → không cần hydrate, render ngay
     const token = localStorage.getItem("wms_access_token");
     if (!token) {
@@ -17,15 +23,15 @@ export function HydrationProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Có user persisted thì render ngay, refresh /auth/me ở nền.
+    // Có token thì render ngay, refresh /auth/me ở nền.
+    setReady(true);
     if (currentUser) {
-      setReady(true);
       hydrate();
       return;
     }
 
-    hydrate().finally(() => setReady(true));
-  }, [currentUser, hydrate]);
+    hydrate();
+  }, [currentUser, hasHydrated, hydrate]);
 
   if (!ready) {
     return (

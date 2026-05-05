@@ -6,6 +6,7 @@ import type { LoginResponse, AuthUser } from "@/types/api";
 
 interface AuthStore {
   currentUser: AuthUser | null;
+  hasHydrated: boolean;
   isLoading: boolean;
   error: string | null;
   login: (username: string, password: string) => Promise<boolean>;
@@ -13,12 +14,14 @@ interface AuthStore {
   clearError: () => void;
   can: (permission: string) => boolean;
   hydrate: () => Promise<void>;
+  setHasHydrated: (value: boolean) => void;
 }
 
 export const useAppStore = create<AuthStore>()(
   persist(
     (set, get) => ({
       currentUser: null,
+      hasHydrated: false,
       isLoading: false,
       error: null,
 
@@ -49,6 +52,7 @@ export const useAppStore = create<AuthStore>()(
       },
 
       clearError: () => set({ error: null }),
+      setHasHydrated: (value) => set({ hasHydrated: value }),
 
       can: (permission: string) => {
         const { currentUser } = get();
@@ -65,15 +69,21 @@ export const useAppStore = create<AuthStore>()(
           const user = await api.get<AuthUser>("/auth/me");
           set({ currentUser: user });
         } catch (err) {
-          // Token hết hạn hoặc lỗi → clear, nhưng KHÔNG set error (tránh hiện lỗi ở login page)
-          tokenStorage.clear();
-          set({ currentUser: null });
+          // Chỉ clear session khi server xác nhận token/session không hợp lệ.
+          // Lỗi mạng/timeout tạm thời không nên đá user ra login sau refresh trang.
+          if (err instanceof ApiError && [401, 403, 404].includes(err.status)) {
+            tokenStorage.clear();
+            set({ currentUser: null });
+          }
         }
       },
     }),
     {
       name: "cat-tuong-auth",
       partialize: (state) => ({ currentUser: state.currentUser }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );
