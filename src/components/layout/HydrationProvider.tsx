@@ -11,20 +11,14 @@ export function HydrationProvider({ children }: { children: React.ReactNode }) {
     // Nếu không có token → không cần hydrate, render ngay
     const token = localStorage.getItem("wms_access_token");
     if (!token) {
+      useAppStore.setState({ currentUser: null });
       setReady(true);
       return;
     }
 
-    // Có token → hydrate với timeout 5 giây
-    // Nếu backend chậm (cold start) → vẫn render sau 5s
-    const timeout = setTimeout(() => setReady(true), 5000);
-
     hydrate().finally(() => {
-      clearTimeout(timeout);
       setReady(true);
     });
-
-    return () => clearTimeout(timeout);
   }, [hydrate]);
 
   if (!ready) {

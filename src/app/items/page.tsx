@@ -26,7 +26,7 @@ export default function ItemsPage() {
   const [formError, setFormError]   = useState("");
   const [saving, setSaving]         = useState(false);
   const [form, setForm]             = useState({
-    categoryId: 1, name: "", code: "", unit: "cái", qty: 0, unitPrice: 0, minQty: 5,
+    categoryId: 0, name: "", code: "", unit: "cái", qty: 0, unitPrice: 0, minQty: 5,
   });
 
   const loadItems = useCallback(async () => {
@@ -51,7 +51,7 @@ export default function ItemsPage() {
   );
 
   const openAdd = () => {
-    setForm({ categoryId: categories[0]?.id ?? 1, name: "", code: "", unit: "cái", qty: 0, unitPrice: 0, minQty: 5 });
+    setForm({ categoryId: categories[0]?.id ?? 0, name: "", code: "", unit: "cái", qty: 0, unitPrice: 0, minQty: 5 });
     setFormError("");
     setModal({ type: "add" });
   };
@@ -174,6 +174,7 @@ export default function ItemsPage() {
             {modal.type === "add" && <>
               <FormGroup label="Danh mục">
                 <Select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: parseInt(e.target.value) })}>
+                  <option value={0}>-- Chọn danh mục --</option>
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
                 </Select>
               </FormGroup>
