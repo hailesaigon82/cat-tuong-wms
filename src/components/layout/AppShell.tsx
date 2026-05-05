@@ -30,7 +30,7 @@ export function AppShell({ title, children, actions }: AppShellProps) {
   if (!currentUser) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f5f7fa]">
+    <div className="flex overflow-hidden bg-[#f5f7fa]" style={{ height: "100dvh" }}>
       {/* Overlay mobile */}
       {sidebarOpen && (
         <div

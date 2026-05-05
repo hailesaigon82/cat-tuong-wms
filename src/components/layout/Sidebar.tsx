@@ -35,7 +35,7 @@ export function Sidebar({ onClose }: SidebarProps) {
   };
 
   return (
-    <aside className="w-[220px] bg-[#1a1a2e] text-white flex flex-col h-screen">
+    <aside className="w-[220px] bg-[#1a1a2e] text-white flex flex-col overflow-hidden" style={{ height: "100dvh" }}>
       {/* Logo + close button (mobile) */}
       <div className="px-4 py-4 border-b border-white/10 flex items-center justify-between">
         <button
@@ -90,7 +90,7 @@ export function Sidebar({ onClose }: SidebarProps) {
       </nav>
 
       {/* Logout */}
-      <div className="p-4 pb-safe border-t border-white/10" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+      <div className="p-4 border-t border-white/10" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom, 16px))" }}>
         <button
           onClick={async () => { await logout(); router.replace("/login"); }}
           className="w-full py-2 bg-white/10 hover:bg-white/20 text-gray-300 text-sm rounded-lg transition-colors"
