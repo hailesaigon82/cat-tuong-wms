@@ -1,7 +1,4 @@
 // src/store/index.ts
-// Store mới: auth state từ JWT, data fetch từ API
-// Không còn lưu items/transactions trong store — fetch trực tiếp từ backend
-
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { api, tokenStorage, ApiError } from "@/lib/api";
@@ -28,12 +25,15 @@ export const useAppStore = create<AuthStore>()(
       login: async (username, password) => {
         set({ isLoading: true, error: null });
         try {
-          const res = await api.post<LoginResponse>("/auth/login", { username, password });
+          // skipRefresh: true — nếu sai pass trả 401, không cố refresh token
+          const res = await api.post<LoginResponse>("/auth/login", { username, password }, { skipRefresh: true });
           tokenStorage.set(res.accessToken, res.refreshToken);
-          set({ currentUser: res.user, isLoading: false });
+          set({ currentUser: res.user, isLoading: false, error: null });
           return true;
         } catch (err) {
-          const message = err instanceof ApiError ? err.message : "Đã xảy ra lỗi, vui lòng thử lại";
+          const message = err instanceof ApiError
+            ? err.message
+            : "Không thể kết nối máy chủ, vui lòng thử lại";
           set({ error: message, isLoading: false });
           return false;
         }
@@ -42,10 +42,10 @@ export const useAppStore = create<AuthStore>()(
       logout: async () => {
         const refreshToken = tokenStorage.getRefresh();
         if (refreshToken) {
-          try { await api.post("/auth/logout", { refreshToken }); } catch {}
+          try { await api.post("/auth/logout", { refreshToken }, { skipRefresh: true }); } catch {}
         }
         tokenStorage.clear();
-        set({ currentUser: null });
+        set({ currentUser: null, error: null });
       },
 
       clearError: () => set({ error: null }),
@@ -56,13 +56,16 @@ export const useAppStore = create<AuthStore>()(
         return currentUser.permissions.includes(permission);
       },
 
+      // Gọi khi app khởi động — khôi phục session từ token đã lưu
       hydrate: async () => {
         const token = tokenStorage.getAccess();
-        if (!token) return;
+        if (!token) return; // Không có token → không cần hydrate
+
         try {
           const user = await api.get<ApiUser & { permissions: string[] }>("/auth/me");
           set({ currentUser: user });
-        } catch {
+        } catch (err) {
+          // Token hết hạn hoặc lỗi → clear, nhưng KHÔNG set error (tránh hiện lỗi ở login page)
           tokenStorage.clear();
           set({ currentUser: null });
         }
