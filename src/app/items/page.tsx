@@ -3,12 +3,17 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAppStore } from "@/store";
 import { AppShell } from "@/components/layout/AppShell";
-import { Button, Badge, Card, CardHeader, Modal, FormGroup, Input, Select, Alert } from "@/components/ui";
+import { Button, Badge, Card, Modal, FormGroup, Input, Select, Alert } from "@/components/ui";
+import { QRGenerator } from "@/components/qr/QRGenerator";
 import { api, ApiError } from "@/lib/api";
 import { fmtCurrency } from "@/lib/utils";
 import type { ApiItem, ApiCategory } from "@/types/api";
 
-type ModalState = { type: "none" } | { type: "add" } | { type: "edit"; item: ApiItem };
+type ModalState =
+  | { type: "none" }
+  | { type: "add" }
+  | { type: "edit"; item: ApiItem }
+  | { type: "qr"; item: ApiItem };
 
 export default function ItemsPage() {
   const can = useAppStore((s) => s.can);
@@ -20,7 +25,9 @@ export default function ItemsPage() {
   const [modal, setModal]           = useState<ModalState>({ type: "none" });
   const [formError, setFormError]   = useState("");
   const [saving, setSaving]         = useState(false);
-  const [form, setForm]             = useState({ categoryId: 1, name: "", code: "", unit: "cái", qty: 0, unitPrice: 0, minQty: 5 });
+  const [form, setForm]             = useState({
+    categoryId: 1, name: "", code: "", unit: "cái", qty: 0, unitPrice: 0, minQty: 5,
+  });
 
   const loadItems = useCallback(async () => {
     try {
@@ -81,7 +88,6 @@ export default function ItemsPage() {
 
   return (
     <AppShell title="Hàng hóa">
-      {/* Search + Add */}
       <div className="flex gap-2 mb-4">
         <Input className="flex-1" placeholder="Tìm theo tên hoặc mã hàng..."
           value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -106,12 +112,18 @@ export default function ItemsPage() {
                       <Badge variant={i.category.code}>{i.code}</Badge>
                       <span className="text-sm font-medium text-gray-800 truncate">{i.name}</span>
                     </div>
-                    {(can("edit_items") || can("delete_items")) && (
-                      <div className="flex gap-1 flex-shrink-0">
-                        {can("edit_items") && <Button size="sm" onClick={() => openEdit(i)}>Sửa</Button>}
-                        {can("delete_items") && <Button size="sm" variant="danger" onClick={() => handleDelete(i.id, i.code)}>Xóa</Button>}
-                      </div>
-                    )}
+                    <div className="flex gap-1 flex-shrink-0">
+                      {/* Nút QR */}
+                      <Button size="sm" onClick={() => setModal({ type: "qr", item: i })}>
+                        QR
+                      </Button>
+                      {can("edit_items") && (
+                        <Button size="sm" onClick={() => openEdit(i)}>Sửa</Button>
+                      )}
+                      {can("delete_items") && (
+                        <Button size="sm" variant="danger" onClick={() => handleDelete(i.id, i.code)}>Xóa</Button>
+                      )}
+                    </div>
                   </div>
                   <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-500">
                     <div>
@@ -133,7 +145,7 @@ export default function ItemsPage() {
               </Card>
             );
           })}
-          {filtered.length === 0 && (
+          {filtered.length === 0 && !loading && (
             <div className="text-center text-gray-400 py-8 text-sm">Không có hàng hóa nào</div>
           )}
         </div>
@@ -182,6 +194,27 @@ export default function ItemsPage() {
                 <Input type="number" min={0} value={form.qty} onChange={(e) => setForm({ ...form, qty: parseInt(e.target.value) || 0 })} />
               </FormGroup>
             )}
+          </div>
+        </Modal>
+      )}
+
+      {/* QR Modal */}
+      {modal.type === "qr" && (
+        <Modal
+          title={`Mã QR — ${modal.item.code}`}
+          onClose={() => setModal({ type: "none" })}
+          footer={<Button onClick={() => setModal({ type: "none" })}>Đóng</Button>}
+        >
+          <div className="flex flex-col items-center gap-4 py-3">
+            <QRGenerator text={modal.item.code} size={200} />
+            <div className="text-center">
+              <p className="text-sm font-medium text-gray-700">{modal.item.name}</p>
+              <p className="text-xs text-gray-400 mt-1 font-mono">{modal.item.code}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{modal.item.category.name}</p>
+            </div>
+            <p className="text-xs text-gray-400 text-center">
+              Scan mã này khi nhập/xuất kho để tự chọn hàng hóa
+            </p>
           </div>
         </Modal>
       )}

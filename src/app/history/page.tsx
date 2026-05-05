@@ -1,8 +1,8 @@
 // src/app/history/page.tsx
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { Card, CardHeader, Badge, Alert } from "@/components/ui";
+import { Card, CardHeader, Badge, Alert, Button } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { fmtCurrency } from "@/lib/utils";
 import type { ApiTransaction, TransactionListResponse } from "@/types/api";
@@ -12,53 +12,133 @@ const TYPE_COLOR: Record<string, string> = {
   in: "text-green-600", out: "text-red-600", adj: "text-amber-600",
 };
 
-export default function HistoryPage() {
-  const [txs, setTxs]         = useState<ApiTransaction[]>([]);
-  const [total, setTotal]     = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState("");
+const LIMIT = 20;
 
-  useEffect(() => {
-    api.get<TransactionListResponse>("/transactions?limit=100")
-      .then((res) => { setTxs(res.data); setTotal(res.pagination.total); })
-      .catch((e) => setError(e instanceof ApiError ? e.message : "Không thể tải lịch sử"))
-      .finally(() => setLoading(false));
+export default function HistoryPage() {
+  const [txs, setTxs]       = useState<ApiTransaction[]>([]);
+  const [total, setTotal]   = useState(0);
+  const [page, setPage]     = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]   = useState("");
+
+  const totalPages = Math.ceil(total / LIMIT);
+
+  const loadPage = useCallback(async (p: number) => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await api.get<TransactionListResponse>(
+        `/transactions?limit=${LIMIT}&page=${p}`
+      );
+      setTxs(res.data);
+      setTotal(res.pagination.total);
+      setPage(p);
+      // Scroll lên đầu khi chuyển trang
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Không thể tải lịch sử");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    loadPage(1);
+  }, [loadPage]);
+
   return (
-    <AppShell title="Lịch sử giao dịch">
+    <AppShell title="Lịch sử xuất/nhập/điều chỉnh kho">
       {error && <div className="mb-4"><Alert type="error" message={error} /></div>}
+
       <Card>
-        <CardHeader title={`Lịch sử (${total} bản ghi)`} />
+        <CardHeader title={`Tổng ${total} giao dịch · Trang ${page}/${totalPages || 1}`} />
+
         {loading ? (
           <div className="text-center text-gray-400 py-8 text-sm">Đang tải...</div>
         ) : (
-          <div className="divide-y divide-gray-100">
-            {txs.map((t) => (
-              <div key={t.id} className="px-4 py-3 flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <Badge variant={t.item?.category?.code ?? ""}>{t.item?.code}</Badge>
-                    <span className="text-sm font-medium text-gray-800 truncate">{t.item?.name}</span>
+          <>
+            <div className="divide-y divide-gray-100">
+              {txs.map((t) => (
+                <div key={t.id} className="px-4 py-3 flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant={t.item?.category?.code ?? ""}>{t.item?.code}</Badge>
+                      <span className="text-sm font-medium text-gray-800 truncate">{t.item?.name}</span>
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {new Date(t.createdAt).toLocaleString("vi-VN")} · {t.user?.name}
+                    </div>
+                    {t.note && (
+                      <div className="text-xs text-gray-400 mt-0.5 italic truncate">{t.note}</div>
+                    )}
                   </div>
-                  <div className="text-xs text-gray-400 mt-0.5">
-                    {new Date(t.createdAt).toLocaleString("vi-VN")} · {t.user?.name}
+                  <div className="flex-shrink-0 text-right">
+                    <div className={`text-sm font-semibold font-mono ${TYPE_COLOR[t.type]}`}>
+                      {t.type === "in" ? "+" : t.type === "out" ? "−" : "≈"}{t.qty}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">{fmtCurrency(t.totalPrice)}</div>
+                    <div className="mt-0.5">
+                      <Badge variant={t.type}>{TYPE_LABEL[t.type]}</Badge>
+                    </div>
                   </div>
-                  {t.note && <div className="text-xs text-gray-400 mt-0.5 italic truncate">{t.note}</div>}
                 </div>
-                <div className="flex-shrink-0 text-right">
-                  <div className={`text-sm font-semibold font-mono ${TYPE_COLOR[t.type]}`}>
-                    {t.type === "in" ? "+" : t.type === "out" ? "−" : "≈"}{t.qty}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-0.5">{fmtCurrency(t.totalPrice)}</div>
-                  <Badge variant={t.type}>{TYPE_LABEL[t.type]}</Badge>
+              ))}
+              {txs.length === 0 && (
+                <div className="text-center text-gray-400 py-8 text-sm">Chưa có giao dịch nào</div>
+              )}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between gap-2">
+                <Button
+                  size="sm"
+                  disabled={page <= 1 || loading}
+                  onClick={() => loadPage(page - 1)}
+                >
+                  ← Trước
+                </Button>
+
+                {/* Page numbers */}
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, idx) => {
+                    // Hiện 5 trang xung quanh trang hiện tại
+                    let p: number;
+                    if (totalPages <= 5) {
+                      p = idx + 1;
+                    } else if (page <= 3) {
+                      p = idx + 1;
+                    } else if (page >= totalPages - 2) {
+                      p = totalPages - 4 + idx;
+                    } else {
+                      p = page - 2 + idx;
+                    }
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => loadPage(p)}
+                        className={`w-8 h-8 text-xs rounded-lg transition-colors ${
+                          p === page
+                            ? "bg-[#185FA5] text-white font-semibold"
+                            : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
                 </div>
+
+                <Button
+                  size="sm"
+                  disabled={page >= totalPages || loading}
+                  onClick={() => loadPage(page + 1)}
+                >
+                  Sau →
+                </Button>
               </div>
-            ))}
-            {txs.length === 0 && !loading && (
-              <div className="text-center text-gray-400 py-8 text-sm">Chưa có giao dịch nào</div>
             )}
-          </div>
+          </>
         )}
       </Card>
     </AppShell>
