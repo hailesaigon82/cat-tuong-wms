@@ -36,10 +36,10 @@ export function TransactionForm({ type }: { type: TransactionType }) {
   }, []);
 
   // Xử lý khi scan QR hàng hóa
+  // Hỗ trợ cả "ITEM-H0001" lẫn "H0001"
   const handleQRScan = (data: string) => {
-    // QR item format: ITEM-H0001
-    const code = data.replace("ITEM-", "");
-    const item = items.find((i) => i.code === code);
+    const code = data.startsWith("ITEM-") ? data.replace("ITEM-", "") : data;
+    const item = items.find((i) => i.code.toUpperCase() === code.toUpperCase());
     if (item) {
       setItemId(item.id);
       setShowScanner(false);
@@ -94,7 +94,6 @@ export function TransactionForm({ type }: { type: TransactionType }) {
               <div className="mb-5 p-3 border border-gray-200 rounded-lg">
                 <QRScanner
                   onScan={handleQRScan}
-                  prefix="ITEM-"
                   onClose={() => setShowScanner(false)}
                   label="Đưa mã QR hàng hóa vào khung hình"
                 />
