@@ -102,11 +102,11 @@ export default function ItemsPage() {
       {loading ? (
         <div className="text-center text-gray-400 py-8 text-sm">Đang tải...</div>
       ) : (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-0">
           {filtered.map((i) => {
             const low = i.qty < i.minQty;
             return (
-              <Card key={i.id} className="mb-0">
+              <Card key={i.id} className="!mb-0">
                 <div className="px-2.5 py-1.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
