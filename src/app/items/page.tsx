@@ -102,12 +102,12 @@ export default function ItemsPage() {
       {loading ? (
         <div className="text-center text-gray-400 py-8 text-sm">Đang tải...</div>
       ) : (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
           {filtered.map((i) => {
             const low = i.qty < i.minQty;
             return (
               <Card key={i.id} className="mb-0">
-                <div className="p-2.5">
+                <div className="px-2.5 py-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <Badge variant={i.category.code}>{i.code}</Badge>
@@ -126,7 +126,7 @@ export default function ItemsPage() {
                       )}
                     </div>
                   </div>
-                  <div className="mt-1.5 grid grid-cols-3 gap-2 text-xs text-gray-500">
+                  <div className="mt-1 grid grid-cols-3 gap-2 text-xs text-gray-500">
                     <div>
                       <div className="text-gray-400">Tồn kho</div>
                       <div className={`font-semibold ${low ? "text-[#A32D2D]" : "text-gray-800"}`}>
