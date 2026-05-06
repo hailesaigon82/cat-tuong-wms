@@ -281,20 +281,23 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
                       autoComplete="off"
                       role="combobox"
                       aria-expanded={itemDropdownOpen}
-                      className="pr-10"
+                      className={cn(
+                        "pr-10 border-[#b8c2cc] bg-white shadow-sm",
+                        itemDropdownOpen && "border-[#185FA5] ring-2 ring-[#185FA5]/15"
+                      )}
                     />
                     <button
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => setItemDropdownOpen((open) => !open)}
-                      className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                      className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-800"
                       aria-label="Mở danh sách hàng hóa"
                     >
                       <ChevronDown size={16} />
                     </button>
 
                     {itemDropdownOpen && (
-                      <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                      <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-[#9aa8b5] bg-white py-1 shadow-[0_12px_28px_rgba(15,23,42,0.18)]">
                         {loading ? (
                           <div className="px-3 py-2 text-sm text-gray-400">Đang tải hàng hóa...</div>
                         ) : items.length === 0 ? (
@@ -307,8 +310,8 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => selectItem(i)}
                               className={cn(
-                                "flex w-full px-3 py-2 text-left text-sm transition hover:bg-gray-50",
-                                itemId === i.id && "bg-blue-50"
+                                "flex w-full border-b border-gray-100 px-3 py-2.5 text-left text-sm transition last:border-b-0 hover:bg-[#eef5fb]",
+                                itemId === i.id && "bg-[#e6f0fa]"
                               )}
                             >
                               <span className="min-w-0 flex-1">
@@ -411,7 +414,7 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
                   <Textarea
                     rows={4} value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    className="min-h-[90px] resize-y"
+                    className="min-h-[90px] resize-y border-[#b8c2cc] bg-white shadow-sm focus:border-[#185FA5] focus:ring-2 focus:ring-[#185FA5]/15"
                     placeholder={txType === "adj" ? "Lý do điều chỉnh tồn kho" : "Ghi chú cho phiếu xuất/nhập"}
                   />
                 </FormGroup>
