@@ -1,19 +1,31 @@
 // src/components/modals/TransactionForm.tsx
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { Button, Alert, Card, FormGroup, Select, Input, Textarea } from "@/components/ui";
+import { Button, Alert, Badge, Card, FormGroup, Select, Input, Textarea } from "@/components/ui";
 import { QRScanner } from "@/components/qr/QRScanner";
 import { api, ApiError } from "@/lib/api";
 import { cn, fmtCurrency } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { ArrowDownToLine, ArrowUpFromLine, Minus, Plus, QrCode } from "lucide-react";
-import type { ApiItem, TransactionType } from "@/types/api";
+import type { ApiItem, ApiTransaction, TransactionListResponse, TransactionType } from "@/types/api";
 
 const CONFIG: Record<TransactionType, { title: string; qtyLabel: string }> = {
   in:  { title: "Nhập kho",           qtyLabel: "Số lượng nhập"           },
   out: { title: "Xuất kho",           qtyLabel: "Số lượng xuất"           },
   adj: { title: "Điều chỉnh tồn kho", qtyLabel: "Số lượng mới (chính xác)" },
+};
+
+const TYPE_LABEL: Record<TransactionType, string> = {
+  in: "Nhập kho",
+  out: "Xuất kho",
+  adj: "Điều chỉnh",
+};
+
+const TYPE_TEXT: Record<TransactionType, string> = {
+  in: "text-green-600",
+  out: "text-red-600",
+  adj: "text-amber-600",
 };
 
 interface TransactionFormProps {
@@ -32,6 +44,9 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
   const [saving, setSaving]     = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [alert, setAlert]       = useState<{ msg: string; type: "error" | "success" } | null>(null);
+  const [recentTxs, setRecentTxs] = useState<ApiTransaction[]>([]);
+  const [recentLoading, setRecentLoading] = useState(false);
+  const [recentError, setRecentError] = useState("");
 
   const cfg = allowTypeSwitch ? { title: "Xuất Nhập", qtyLabel: "Số lượng" } : CONFIG[txType];
   const selectedItem = items.find((i) => i.id === Number(itemId));
@@ -54,6 +69,31 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const loadRecentTransactions = useCallback(async (nextItemId: number) => {
+    setRecentLoading(true);
+    setRecentError("");
+    try {
+      const res = await api.get<TransactionListResponse>(
+        `/transactions?limit=3&page=1&itemId=${nextItemId}`
+      );
+      setRecentTxs(res.data);
+    } catch (e) {
+      setRecentTxs([]);
+      setRecentError(e instanceof ApiError ? e.message : "Không thể tải giao dịch gần nhất");
+    } finally {
+      setRecentLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedItem) {
+      setRecentTxs([]);
+      setRecentError("");
+      return;
+    }
+    loadRecentTransactions(selectedItem.id);
+  }, [loadRecentTransactions, selectedItem]);
 
   // Xử lý khi scan QR hàng hóa
   // Hỗ trợ cả "ITEM-H0001" lẫn "H0001"
@@ -84,10 +124,11 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
         msg: `✅ ${CONFIG[txType].title} thành công! Tồn kho mới: ${res.newQty} ${selectedItem.unit}`,
         type: "success",
       });
-      setItemId(""); setQty("1"); setNote("");
       // Refresh danh sách để cập nhật qty
       const updated = await api.get<ApiItem[]>("/items");
       setItems(updated);
+      await loadRecentTransactions(selectedItem.id);
+      setQty("1"); setNote("");
     } catch (e) {
       setAlert({ msg: e instanceof ApiError ? e.message : "Có lỗi xảy ra", type: "error" });
     } finally {
@@ -103,6 +144,15 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
     if (nextType === "in" && !canIn) return;
     if (nextType === "out" && !canOut) return;
     setTxType(nextType);
+  };
+
+  const resetForm = () => {
+    setItemId("");
+    setQty("1");
+    setNote("");
+    setAlert(null);
+    setRecentTxs([]);
+    setRecentError("");
   };
 
   return (
@@ -153,40 +203,49 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
                 </FormGroup>
               </div>
 
+              <div className="mb-[18px]">
+                <FormGroup label="Tồn kho">
+                  <Input
+                    value={selectedItem ? `${selectedItem.qty} ${selectedItem.unit}` : ""}
+                    readOnly
+                    className="bg-gray-50"
+                    placeholder="Chọn hàng hóa để xem tồn kho"
+                  />
+                </FormGroup>
+              </div>
+
               {allowTypeSwitch && (
                 <div className="mb-[18px]">
-                  <FormGroup label="Loại phiếu" required>
-                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2" role="group" aria-label="Loại phiếu">
-                      <button
-                        type="button"
-                        onClick={() => selectTxType("out")}
-                        disabled={!canOut}
-                        className={cn(
-                          "inline-flex items-center justify-center gap-2 rounded-md border-[1.5px] px-3.5 py-3 text-[15px] font-semibold transition-all active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40",
-                          txType === "out"
-                            ? "border-[#dc3545] bg-[#dc3545] text-white shadow-[0_6px_16px_-8px_#dc3545]"
-                            : "border-[#dc3545] bg-white text-[#dc3545] hover:bg-red-50"
-                        )}
-                      >
-                        <ArrowUpFromLine size={18} strokeWidth={2.2} />
-                        Xuất kho
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => selectTxType("in")}
-                        disabled={!canIn}
-                        className={cn(
-                          "inline-flex items-center justify-center gap-2 rounded-md border-[1.5px] px-3.5 py-3 text-[15px] font-semibold transition-all active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40",
-                          txType === "in"
-                            ? "border-[#198754] bg-[#198754] text-white shadow-[0_6px_16px_-8px_#198754]"
-                            : "border-[#198754] bg-white text-[#198754] hover:bg-green-50"
-                        )}
-                      >
-                        <ArrowDownToLine size={18} strokeWidth={2.2} />
-                        Nhập kho
-                      </button>
-                    </div>
-                  </FormGroup>
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2" role="group" aria-label="Loại phiếu">
+                    <button
+                      type="button"
+                      onClick={() => selectTxType("out")}
+                      disabled={!canOut}
+                      className={cn(
+                        "inline-flex items-center justify-center gap-2 rounded-md border-[1.5px] px-3.5 py-3 text-[15px] font-semibold transition-all active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40",
+                        txType === "out"
+                          ? "border-[#dc3545] bg-[#dc3545] text-white shadow-[0_6px_16px_-8px_#dc3545]"
+                          : "border-[#dc3545] bg-white text-[#dc3545] hover:bg-red-50"
+                      )}
+                    >
+                      <ArrowUpFromLine size={18} strokeWidth={2.2} />
+                      Xuất kho
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectTxType("in")}
+                      disabled={!canIn}
+                      className={cn(
+                        "inline-flex items-center justify-center gap-2 rounded-md border-[1.5px] px-3.5 py-3 text-[15px] font-semibold transition-all active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40",
+                        txType === "in"
+                          ? "border-[#198754] bg-[#198754] text-white shadow-[0_6px_16px_-8px_#198754]"
+                          : "border-[#198754] bg-white text-[#198754] hover:bg-green-50"
+                      )}
+                    >
+                      <ArrowDownToLine size={18} strokeWidth={2.2} />
+                      Nhập kho
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -222,17 +281,6 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
                 </FormGroup>
               </div>
 
-              {selectedItem && qtyNum > 0 && (
-                <div className="mb-[18px] grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <FormGroup label="Tồn kho hiện tại">
-                    <Input value={`${selectedItem.qty} ${selectedItem.unit}`} readOnly className="bg-gray-50" />
-                  </FormGroup>
-                  <FormGroup label="Thành tiền">
-                    <Input value={fmtCurrency(qtyNum * selectedItem.unitPrice)} readOnly className="bg-gray-50" />
-                  </FormGroup>
-                </div>
-              )}
-
               <div className="mb-[18px]">
                 <FormGroup label="Ghi chú" required>
                   <Textarea
@@ -249,9 +297,60 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
               <Button variant="primary" onClick={submit} disabled={saving || loading}>
                 {saving ? "Đang xử lý..." : "Xác nhận"}
               </Button>
-              <Button onClick={() => { setItemId(""); setQty("1"); setNote(""); setAlert(null); }}>
+              <Button onClick={resetForm}>
                 Làm mới
               </Button>
+            </div>
+
+            <div className="my-6 border-t border-gray-200" />
+
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold text-gray-800">3 giao dịch gần nhất</h2>
+                {selectedItem && (
+                  <span className="truncate text-xs text-gray-400">{selectedItem.code} · {selectedItem.name}</span>
+                )}
+              </div>
+
+              {!selectedItem ? (
+                <div className="rounded-md border border-dashed border-gray-200 px-3 py-4 text-center text-sm text-gray-400">
+                  Chọn hàng hóa để xem giao dịch gần nhất
+                </div>
+              ) : recentLoading ? (
+                <div className="rounded-md border border-gray-100 px-3 py-4 text-center text-sm text-gray-400">
+                  Đang tải giao dịch...
+                </div>
+              ) : recentError ? (
+                <Alert type="error" message={recentError} />
+              ) : recentTxs.length === 0 ? (
+                <div className="rounded-md border border-dashed border-gray-200 px-3 py-4 text-center text-sm text-gray-400">
+                  Chưa có giao dịch nào cho hàng hóa này
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100 rounded-md border border-gray-200">
+                  {recentTxs.map((tx) => (
+                    <div key={tx.id} className="flex items-start justify-between gap-3 px-3 py-2.5">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant={tx.type}>{TYPE_LABEL[tx.type]}</Badge>
+                          <span className="text-xs text-gray-400">
+                            {new Date(tx.createdAt).toLocaleString("vi-VN")}
+                          </span>
+                        </div>
+                        <div className="mt-1 truncate text-xs text-gray-500">
+                          {tx.user?.name ?? "Không rõ người dùng"}{tx.note ? ` · ${tx.note}` : ""}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <div className={cn("font-mono text-sm font-semibold", TYPE_TEXT[tx.type])}>
+                          {tx.type === "in" ? "+" : tx.type === "out" ? "-" : "="}{tx.qty}
+                        </div>
+                        <div className="mt-0.5 text-xs text-gray-400">{fmtCurrency(tx.totalPrice)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </Card>
