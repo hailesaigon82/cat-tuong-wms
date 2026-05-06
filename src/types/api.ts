@@ -33,6 +33,7 @@ export interface ApiCategory {
   code: string;
   name: string;
   description?: string;
+  isActive?: boolean;
 }
 
 export interface ApiItem {

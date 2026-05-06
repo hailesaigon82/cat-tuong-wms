@@ -1,6 +1,6 @@
 # 🌸 Cát Tường WMS — Next.js
 
-Hệ thống quản lý kho hàng (Warehouse Management System) được chuyển đổi từ HTML đơn sang **Next.js 14** với App Router, TypeScript, Tailwind CSS và Zustand.
+Hệ thống quản lý kho hàng (Warehouse Management System) được chuyển đổi từ HTML đơn sang **Next.js 16** với App Router, TypeScript, Tailwind CSS và Zustand.
 
 ## 🚀 Cài đặt & Chạy
 
@@ -66,7 +66,7 @@ src/
 
 ## 🛠 Tech Stack
 
-- **Next.js 14** (App Router)
+- **Next.js 16** (App Router)
 - **TypeScript**
 - **Tailwind CSS**
 - **Zustand** (state management + persistence)

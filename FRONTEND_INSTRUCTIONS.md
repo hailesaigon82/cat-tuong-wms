@@ -2,13 +2,13 @@
 
 ## Project scope
 
-This repository is the frontend app for Cát Tường WMS. It is a Next.js 14 App Router application deployed on Vercel and connected to the Fastify backend through `NEXT_PUBLIC_API_URL`.
+This repository is the frontend app for Cát Tường WMS. It is a Next.js 16 App Router application deployed on Vercel and connected to the Fastify backend through `NEXT_PUBLIC_API_URL`.
 
 Treat this as an internal warehouse operations tool, not a marketing website. Prioritize fast workflows, clear Vietnamese messages, predictable navigation, and mobile usability for warehouse staff.
 
 ## Tech stack
 
-- Next.js 14 App Router with TypeScript.
+- Next.js 16 App Router with TypeScript.
 - Tailwind CSS for styling.
 - Zustand for auth state.
 - Browser `localStorage` for access and refresh tokens.
