@@ -7,7 +7,7 @@ import { QRScanner } from "@/components/qr/QRScanner";
 import { api, ApiError } from "@/lib/api";
 import { cn, fmtCurrency } from "@/lib/utils";
 import { useAppStore } from "@/store";
-import { ArrowDownToLine, ArrowUpFromLine, Minus, Plus } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Minus, Plus, QrCode } from "lucide-react";
 import type { ApiItem, TransactionType } from "@/types/api";
 
 const CONFIG: Record<TransactionType, { title: string; qtyLabel: string }> = {
@@ -26,7 +26,7 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
   const [items, setItems]       = useState<ApiItem[]>([]);
   const [itemId, setItemId]     = useState<number | "">("");
   const [txType, setTxType]     = useState<TransactionType>(type);
-  const [qty, setQty]           = useState("");
+  const [qty, setQty]           = useState("1");
   const [note, setNote]         = useState("");
   const [loading, setLoading]   = useState(true);
   const [saving, setSaving]     = useState(false);
@@ -84,7 +84,7 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
         msg: `✅ ${CONFIG[txType].title} thành công! Tồn kho mới: ${res.newQty} ${selectedItem.unit}`,
         type: "success",
       });
-      setItemId(""); setQty(""); setNote("");
+      setItemId(""); setQty("1"); setNote("");
       // Refresh danh sách để cập nhật qty
       const updated = await api.get<ApiItem[]>("/items");
       setItems(updated);
@@ -107,16 +107,21 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
 
   return (
     <AppShell title={cfg.title}>
-      <div className="max-w-xl">
-        <Card>
-          <div className="p-5">
+      <div className="max-w-[620px]">
+        <Card className="rounded-lg shadow-sm">
+          <div className="p-6">
             {alert && <div className="mb-4"><Alert type={alert.type} message={alert.msg} /></div>}
 
             {/* QR Scanner toggle */}
-            <div className="flex items-center gap-3 mb-5">
-              <Button onClick={() => setShowScanner(!showScanner)}>
-                📷 Quét mã QR hàng hóa
-              </Button>
+            <div className="mb-5 flex items-center gap-3.5">
+              <button
+                type="button"
+                onClick={() => setShowScanner(!showScanner)}
+                className="inline-flex items-center gap-2 rounded-md border-0 bg-[#2c3e50] px-3.5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1f2d3a]"
+              >
+                <QrCode size={16} />
+                Quét mã QR hàng hóa
+              </button>
               <span className="text-sm text-gray-400">hoặc chọn bên dưới</span>
             </div>
 
@@ -130,8 +135,8 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+            <div>
+              <div className="mb-[18px]">
                 <FormGroup label="Hàng hóa" required>
                   <Select
                     value={itemId}
@@ -149,106 +154,106 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
               </div>
 
               {selectedItem && (
-                <div className="col-span-2 rounded-lg border border-gray-200 bg-white px-4 py-4 shadow-sm">
-                  <div className="mb-4">
-                    <h2 className="text-base font-semibold text-gray-900">Quản lý kho</h2>
-                    <p className="mt-1 text-xs text-gray-500">Chọn thao tác và nhập số lượng hàng hóa.</p>
-                    <p className="mt-2 text-xs text-gray-400">
-                      Tồn hiện tại: <span className="font-medium text-gray-700">{selectedItem.qty} {selectedItem.unit}</span>
-                    </p>
-                  </div>
-
+                <>
                   {allowTypeSwitch && (
-                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        onClick={() => selectTxType("out")}
-                        disabled={!canOut}
-                        className={cn(
-                          "flex h-[52px] items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-                          txType === "out"
-                            ? "border-[#A32D2D] bg-[#A32D2D] text-white"
-                            : "border-red-500 bg-white text-red-600 hover:bg-red-50"
-                        )}
-                      >
-                        <ArrowUpFromLine size={18} />
-                        Xuất kho
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => selectTxType("in")}
-                        disabled={!canIn}
-                        className={cn(
-                          "flex h-[52px] items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-                          txType === "in"
-                            ? "border-[#0F8A5F] bg-[#0F8A5F] text-white"
-                            : "border-[#0F8A5F] bg-white text-[#0F8A5F] hover:bg-green-50"
-                        )}
-                      >
-                        <ArrowDownToLine size={18} />
-                        Nhập kho
-                      </button>
+                    <div className="mb-[18px]">
+                      <FormGroup label="Loại phiếu" required>
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2" role="group" aria-label="Loại phiếu">
+                          <button
+                            type="button"
+                            onClick={() => selectTxType("out")}
+                            disabled={!canOut}
+                            className={cn(
+                              "inline-flex items-center justify-center gap-2 rounded-md border-[1.5px] px-3.5 py-3 text-[15px] font-semibold transition-all active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40",
+                              txType === "out"
+                                ? "border-[#dc3545] bg-[#dc3545] text-white shadow-[0_6px_16px_-8px_#dc3545]"
+                                : "border-[#dc3545] bg-white text-[#dc3545] hover:bg-red-50"
+                            )}
+                          >
+                            <ArrowUpFromLine size={18} strokeWidth={2.2} />
+                            Xuất kho
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => selectTxType("in")}
+                            disabled={!canIn}
+                            className={cn(
+                              "inline-flex items-center justify-center gap-2 rounded-md border-[1.5px] px-3.5 py-3 text-[15px] font-semibold transition-all active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40",
+                              txType === "in"
+                                ? "border-[#198754] bg-[#198754] text-white shadow-[0_6px_16px_-8px_#198754]"
+                                : "border-[#198754] bg-white text-[#198754] hover:bg-green-50"
+                            )}
+                          >
+                            <ArrowDownToLine size={18} strokeWidth={2.2} />
+                            Nhập kho
+                          </button>
+                        </div>
+                      </FormGroup>
                     </div>
                   )}
 
-                  <div className="mt-4">
+                  <div className="mb-[18px]">
                     <FormGroup label={cfg.qtyLabel} required>
-                      <div className="flex h-12 overflow-hidden rounded-lg border border-gray-300 bg-white focus-within:border-[#185FA5]">
-                        <input
-                          type="number"
-                          min={1}
-                          value={qty}
-                          onChange={(e) => setQty(e.target.value)}
-                          placeholder="Nhập số lượng"
-                          className="min-w-0 flex-1 border-0 px-3 text-sm outline-none"
-                        />
+                      <div className="flex max-w-[220px] items-stretch overflow-hidden rounded-md border border-[#ced4da] bg-white transition focus-within:border-[#86b7fe] focus-within:shadow-[0_0_0_0.25rem_rgba(13,110,253,.25)]">
                         <button
                           type="button"
                           onClick={() => updateQty(qtyNum - 1)}
-                          className="flex w-10 items-center justify-center border-l border-gray-300 text-gray-600 hover:bg-gray-50"
+                          className="flex w-10 items-center justify-center border-r border-[#dee2e6] bg-[#f8f9fa] text-gray-800 transition-colors hover:bg-[#e9ecef] active:bg-[#dee2e6]"
+                          aria-label="Giảm"
                         >
-                          <Minus size={16} />
+                          <Minus size={16} strokeWidth={3} />
                         </button>
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          inputMode="numeric"
+                          value={qty}
+                          onChange={(e) => setQty(e.target.value)}
+                          className="min-w-0 flex-1 border-0 bg-transparent px-2.5 py-2 text-center text-[15px] font-semibold text-gray-800 outline-none"
+                        />
                         <button
                           type="button"
                           onClick={() => updateQty(qtyNum + 1)}
-                          className="flex w-10 items-center justify-center border-l border-gray-300 text-gray-600 hover:bg-gray-50"
+                          className="flex w-10 items-center justify-center border-l border-[#dee2e6] bg-[#f8f9fa] text-gray-800 transition-colors hover:bg-[#e9ecef] active:bg-[#dee2e6]"
+                          aria-label="Tăng"
                         >
-                          <Plus size={16} />
+                          <Plus size={16} strokeWidth={3} />
                         </button>
                       </div>
                     </FormGroup>
                   </div>
-                </div>
-              )}
 
-              {selectedItem && qtyNum > 0 && (
-                <>
-                  <FormGroup label="Đơn giá">
-                    <Input value={fmtCurrency(selectedItem.unitPrice)} readOnly className="bg-gray-50" />
-                  </FormGroup>
-                  <FormGroup label="Thành tiền">
-                    <Input value={fmtCurrency(qtyNum * selectedItem.unitPrice)} readOnly className="bg-gray-50" />
-                  </FormGroup>
+                  {qtyNum > 0 && (
+                    <div className="mb-[18px] grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <FormGroup label="Tồn kho hiện tại">
+                        <Input value={`${selectedItem.qty} ${selectedItem.unit}`} readOnly className="bg-gray-50" />
+                      </FormGroup>
+                      <FormGroup label="Thành tiền">
+                        <Input value={fmtCurrency(qtyNum * selectedItem.unitPrice)} readOnly className="bg-gray-50" />
+                      </FormGroup>
+                    </div>
+                  )}
                 </>
               )}
 
-              <div className="col-span-2">
+              <div className="mb-[18px]">
                 <FormGroup label="Ghi chú" required>
                   <Textarea
-                    rows={2} value={note}
+                    rows={4} value={note}
                     onChange={(e) => setNote(e.target.value)}
+                    className="min-h-[90px] resize-y"
                     placeholder={txType === "adj" ? "Lý do điều chỉnh tồn kho" : "Ghi chú cho phiếu xuất/nhập"}
                   />
                 </FormGroup>
               </div>
             </div>
 
-            <div className="flex gap-3 mt-5">
+            <div className="mt-[22px] flex gap-2.5">
               <Button variant="primary" onClick={submit} disabled={saving || loading}>
                 {saving ? "Đang xử lý..." : "Xác nhận"}
               </Button>
-              <Button onClick={() => { setItemId(""); setQty(""); setNote(""); setAlert(null); }}>
+              <Button onClick={() => { setItemId(""); setQty("1"); setNote(""); setAlert(null); }}>
                 Làm mới
               </Button>
             </div>
