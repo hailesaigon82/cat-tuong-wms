@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 import React from "react";
+import { createPortal } from "react-dom";
 
 // ─── Badge ────────────────────────────────────────────────────────────────────
 const badgeVariants: Record<string, string> = {
@@ -69,7 +70,15 @@ interface ModalProps {
 }
 
 export function Modal({ title, onClose, footer, children, maxWidth = "max-w-lg" }: ModalProps) {
-  return (
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
         className={cn("bg-white rounded-xl w-full overflow-y-auto max-h-[90vh] shadow-xl fade-in", maxWidth)}
@@ -84,7 +93,8 @@ export function Modal({ title, onClose, footer, children, maxWidth = "max-w-lg" 
         <div className="p-5">{children}</div>
         {footer && <div className="px-5 py-4 border-t border-gray-200 flex gap-2 justify-end">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

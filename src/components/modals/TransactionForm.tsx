@@ -211,7 +211,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
       });
       return;
     }
-    if (txType === "adj" && !note.trim()) { setAlert({ msg: "Vui lòng nhập ghi chú điều chỉnh", type: "error" }); return; }
+    if (!note.trim()) { setAlert({ msg: "Vui lòng nhập ghi chú", type: "error" }); return; }
     setSaving(true); setAlert(null);
     try {
       const res = await api.post<{ newQty: number }>("/transactions", {
@@ -428,7 +428,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
               </div>
 
               <div className="mb-[18px]">
-                <FormGroup label="Ghi chú" required={txType === "adj"}>
+                <FormGroup label="Ghi chú" required>
                   <Textarea
                     rows={4} value={note}
                     onChange={(e) => setNote(e.target.value)}
