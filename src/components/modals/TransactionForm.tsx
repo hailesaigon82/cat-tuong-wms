@@ -153,88 +153,84 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
                 </FormGroup>
               </div>
 
-              {selectedItem && (
-                <>
-                  {allowTypeSwitch && (
-                    <div className="mb-[18px]">
-                      <FormGroup label="Loại phiếu" required>
-                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2" role="group" aria-label="Loại phiếu">
-                          <button
-                            type="button"
-                            onClick={() => selectTxType("out")}
-                            disabled={!canOut}
-                            className={cn(
-                              "inline-flex items-center justify-center gap-2 rounded-md border-[1.5px] px-3.5 py-3 text-[15px] font-semibold transition-all active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40",
-                              txType === "out"
-                                ? "border-[#dc3545] bg-[#dc3545] text-white shadow-[0_6px_16px_-8px_#dc3545]"
-                                : "border-[#dc3545] bg-white text-[#dc3545] hover:bg-red-50"
-                            )}
-                          >
-                            <ArrowUpFromLine size={18} strokeWidth={2.2} />
-                            Xuất kho
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => selectTxType("in")}
-                            disabled={!canIn}
-                            className={cn(
-                              "inline-flex items-center justify-center gap-2 rounded-md border-[1.5px] px-3.5 py-3 text-[15px] font-semibold transition-all active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40",
-                              txType === "in"
-                                ? "border-[#198754] bg-[#198754] text-white shadow-[0_6px_16px_-8px_#198754]"
-                                : "border-[#198754] bg-white text-[#198754] hover:bg-green-50"
-                            )}
-                          >
-                            <ArrowDownToLine size={18} strokeWidth={2.2} />
-                            Nhập kho
-                          </button>
-                        </div>
-                      </FormGroup>
+              {allowTypeSwitch && (
+                <div className="mb-[18px]">
+                  <FormGroup label="Loại phiếu" required>
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2" role="group" aria-label="Loại phiếu">
+                      <button
+                        type="button"
+                        onClick={() => selectTxType("out")}
+                        disabled={!canOut}
+                        className={cn(
+                          "inline-flex items-center justify-center gap-2 rounded-md border-[1.5px] px-3.5 py-3 text-[15px] font-semibold transition-all active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40",
+                          txType === "out"
+                            ? "border-[#dc3545] bg-[#dc3545] text-white shadow-[0_6px_16px_-8px_#dc3545]"
+                            : "border-[#dc3545] bg-white text-[#dc3545] hover:bg-red-50"
+                        )}
+                      >
+                        <ArrowUpFromLine size={18} strokeWidth={2.2} />
+                        Xuất kho
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectTxType("in")}
+                        disabled={!canIn}
+                        className={cn(
+                          "inline-flex items-center justify-center gap-2 rounded-md border-[1.5px] px-3.5 py-3 text-[15px] font-semibold transition-all active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40",
+                          txType === "in"
+                            ? "border-[#198754] bg-[#198754] text-white shadow-[0_6px_16px_-8px_#198754]"
+                            : "border-[#198754] bg-white text-[#198754] hover:bg-green-50"
+                        )}
+                      >
+                        <ArrowDownToLine size={18} strokeWidth={2.2} />
+                        Nhập kho
+                      </button>
                     </div>
-                  )}
+                  </FormGroup>
+                </div>
+              )}
 
-                  <div className="mb-[18px]">
-                    <FormGroup label={cfg.qtyLabel} required>
-                      <div className="flex max-w-[220px] items-stretch overflow-hidden rounded-md border border-[#ced4da] bg-white transition focus-within:border-[#86b7fe] focus-within:shadow-[0_0_0_0.25rem_rgba(13,110,253,.25)]">
-                        <button
-                          type="button"
-                          onClick={() => updateQty(qtyNum - 1)}
-                          className="flex w-10 items-center justify-center border-r border-[#dee2e6] bg-[#f8f9fa] text-gray-800 transition-colors hover:bg-[#e9ecef] active:bg-[#dee2e6]"
-                          aria-label="Giảm"
-                        >
-                          <Minus size={16} strokeWidth={3} />
-                        </button>
-                        <input
-                          type="number"
-                          min={1}
-                          step={1}
-                          inputMode="numeric"
-                          value={qty}
-                          onChange={(e) => setQty(e.target.value)}
-                          className="min-w-0 flex-1 border-0 bg-transparent px-2.5 py-2 text-center text-[15px] font-semibold text-gray-800 outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => updateQty(qtyNum + 1)}
-                          className="flex w-10 items-center justify-center border-l border-[#dee2e6] bg-[#f8f9fa] text-gray-800 transition-colors hover:bg-[#e9ecef] active:bg-[#dee2e6]"
-                          aria-label="Tăng"
-                        >
-                          <Plus size={16} strokeWidth={3} />
-                        </button>
-                      </div>
-                    </FormGroup>
+              <div className="mb-[18px]">
+                <FormGroup label={cfg.qtyLabel} required>
+                  <div className="flex max-w-[220px] items-stretch overflow-hidden rounded-md border border-[#ced4da] bg-white transition focus-within:border-[#86b7fe] focus-within:shadow-[0_0_0_0.25rem_rgba(13,110,253,.25)]">
+                    <button
+                      type="button"
+                      onClick={() => updateQty(qtyNum - 1)}
+                      className="flex w-10 items-center justify-center border-r border-[#dee2e6] bg-[#f8f9fa] text-gray-800 transition-colors hover:bg-[#e9ecef] active:bg-[#dee2e6]"
+                      aria-label="Giảm"
+                    >
+                      <Minus size={16} strokeWidth={3} />
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      inputMode="numeric"
+                      value={qty}
+                      onChange={(e) => setQty(e.target.value)}
+                      className="min-w-0 flex-1 border-0 bg-transparent px-2.5 py-2 text-center text-[15px] font-semibold text-gray-800 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => updateQty(qtyNum + 1)}
+                      className="flex w-10 items-center justify-center border-l border-[#dee2e6] bg-[#f8f9fa] text-gray-800 transition-colors hover:bg-[#e9ecef] active:bg-[#dee2e6]"
+                      aria-label="Tăng"
+                    >
+                      <Plus size={16} strokeWidth={3} />
+                    </button>
                   </div>
+                </FormGroup>
+              </div>
 
-                  {qtyNum > 0 && (
-                    <div className="mb-[18px] grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <FormGroup label="Tồn kho hiện tại">
-                        <Input value={`${selectedItem.qty} ${selectedItem.unit}`} readOnly className="bg-gray-50" />
-                      </FormGroup>
-                      <FormGroup label="Thành tiền">
-                        <Input value={fmtCurrency(qtyNum * selectedItem.unitPrice)} readOnly className="bg-gray-50" />
-                      </FormGroup>
-                    </div>
-                  )}
-                </>
+              {selectedItem && qtyNum > 0 && (
+                <div className="mb-[18px] grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FormGroup label="Tồn kho hiện tại">
+                    <Input value={`${selectedItem.qty} ${selectedItem.unit}`} readOnly className="bg-gray-50" />
+                  </FormGroup>
+                  <FormGroup label="Thành tiền">
+                    <Input value={fmtCurrency(qtyNum * selectedItem.unitPrice)} readOnly className="bg-gray-50" />
+                  </FormGroup>
+                </div>
               )}
 
               <div className="mb-[18px]">
