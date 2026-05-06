@@ -11,6 +11,7 @@ interface AuthStore {
   error: string | null;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   clearError: () => void;
   can: (permission: string) => boolean;
   hydrate: () => Promise<void>;
@@ -47,6 +48,12 @@ export const useAppStore = create<AuthStore>()(
         if (refreshToken) {
           try { await api.post("/auth/logout", { refreshToken }, { skipRefresh: true }); } catch {}
         }
+        tokenStorage.clear();
+        set({ currentUser: null, error: null });
+      },
+
+      changePassword: async (currentPassword, newPassword) => {
+        await api.post("/auth/change-password", { currentPassword, newPassword });
         tokenStorage.clear();
         set({ currentUser: null, error: null });
       },

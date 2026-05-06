@@ -1,16 +1,18 @@
 // src/components/layout/Sidebar.tsx
 "use client";
+import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAppStore, ROLE_NAMES } from "@/store";
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import { ApiError } from "@/lib/api";
+import { Alert, Button, FormGroup, Input, Modal } from "@/components/ui";
+import { ChevronDown, KeyRound, X } from "lucide-react";
 
 type NavItem =
   | { path: string; label: string; icon: string; permission: string; permissions?: never }
   | { path: string; label: string; icon: string; permissions: string[]; permission?: never };
 
 const NAV: NavItem[] = [
-  { path: "/dashboard",        label: "Tổng quan",  icon: "📊", permission: "view_dashboard" },
   { path: "/items",            label: "Hàng hóa",   icon: "📦", permission: "view_items"     },
   { path: "/transactions",     label: "Xuất Nhập",  icon: "↕️", permissions: ["tx_in", "tx_out"] },
   { path: "/transactions/adj", label: "Điều chỉnh", icon: "⚖️", permission: "tx_adj"         },
@@ -25,9 +27,19 @@ interface SidebarProps {
 export function Sidebar({ onClose }: SidebarProps) {
   const currentUser = useAppStore((s) => s.currentUser);
   const logout      = useAppStore((s) => s.logout);
+  const changePassword = useAppStore((s) => s.changePassword);
   const can         = useAppStore((s) => s.can);
   const router      = useRouter();
   const pathname    = usePathname();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   if (!currentUser) return null;
   const canSeeNavItem = (n: NavItem) => {
@@ -39,6 +51,45 @@ export function Sidebar({ onClose }: SidebarProps) {
   const navigate = (path: string) => {
     router.push(path);
     onClose?.();
+  };
+
+  const openPasswordModal = () => {
+    setUserMenuOpen(false);
+    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    setPasswordError("");
+    setShowPasswordModal(true);
+  };
+
+  const submitChangePassword = async () => {
+    const currentPassword = passwordForm.currentPassword;
+    const newPassword = passwordForm.newPassword;
+    const confirmPassword = passwordForm.confirmPassword;
+
+    if (!currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
+      setPasswordError("Vui lòng nhập đầy đủ thông tin");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError("Mật khẩu mới phải có ít nhất 6 ký tự");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Xác nhận mật khẩu mới không khớp");
+      return;
+    }
+
+    setPasswordSaving(true);
+    setPasswordError("");
+    try {
+      await changePassword(currentPassword, newPassword);
+      setShowPasswordModal(false);
+      router.replace("/login");
+      onClose?.();
+    } catch (e) {
+      setPasswordError(e instanceof ApiError ? e.message : "Đổi mật khẩu thất bại");
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   return (
@@ -67,13 +118,35 @@ export function Sidebar({ onClose }: SidebarProps) {
       </div>
 
       {/* User info */}
-      <div className="px-4 py-3 border-b border-white/10">
-        <div className="text-sm font-semibold text-white leading-tight truncate">
-          {currentUser.name}
-        </div>
-        <div className="text-xs text-gray-400 mt-0.5">
-          {ROLE_NAMES[currentUser.role.code] ?? currentUser.role.name}
-        </div>
+      <div className="relative border-b border-white/10 px-4 py-3">
+        <button
+          type="button"
+          onClick={() => setUserMenuOpen((open) => !open)}
+          className="flex w-full items-center justify-between gap-2 rounded-md text-left transition-colors hover:bg-white/5"
+        >
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold leading-tight text-white">
+              {currentUser.name}
+            </span>
+            <span className="mt-0.5 block truncate text-xs text-gray-400">
+              {ROLE_NAMES[currentUser.role.code] ?? currentUser.role.name}
+            </span>
+          </span>
+          <ChevronDown size={15} className={cn("shrink-0 text-gray-400 transition-transform", userMenuOpen && "rotate-180")} />
+        </button>
+
+        {userMenuOpen && (
+          <div className="absolute left-3 right-3 top-[calc(100%-4px)] z-20 rounded-lg border border-white/10 bg-[#24243d] py-1 shadow-xl">
+            <button
+              type="button"
+              onClick={openPasswordModal}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-200 transition-colors hover:bg-white/10"
+            >
+              <KeyRound size={15} />
+              Đổi mật khẩu
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Nav */}
@@ -107,6 +180,47 @@ export function Sidebar({ onClose }: SidebarProps) {
           Đăng xuất
         </button>
       </div>
+
+      {showPasswordModal && (
+        <Modal
+          title="Đổi mật khẩu"
+          onClose={() => setShowPasswordModal(false)}
+          footer={<>
+            <Button onClick={() => setShowPasswordModal(false)} disabled={passwordSaving}>Hủy</Button>
+            <Button variant="primary" onClick={submitChangePassword} disabled={passwordSaving}>
+              {passwordSaving ? "Đang đổi..." : "Xác nhận"}
+            </Button>
+          </>}
+        >
+          {passwordError && <div className="mb-4"><Alert type="error" message={passwordError} /></div>}
+          <div className="space-y-4">
+            <FormGroup label="Mật khẩu hiện tại" required>
+              <Input
+                type="password"
+                value={passwordForm.currentPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                autoComplete="current-password"
+              />
+            </FormGroup>
+            <FormGroup label="Mật khẩu mới" required>
+              <Input
+                type="password"
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                autoComplete="new-password"
+              />
+            </FormGroup>
+            <FormGroup label="Xác nhận mật khẩu mới" required>
+              <Input
+                type="password"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                autoComplete="new-password"
+              />
+            </FormGroup>
+          </div>
+        </Modal>
+      )}
     </aside>
   );
 }

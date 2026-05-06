@@ -89,6 +89,18 @@ Ghi chú: QR login hiện chỉ điền username, không đăng nhập tự đ�
 
 Ghi chú: menu không gọi backend trực tiếp; dữ liệu lấy từ auth store sau login/hydrate.
 
+| Hạng mục | Nội dung |
+|---|---|
+| Route/page | `src/components/layout/Sidebar.tsx` hoặc user menu trong AppShell |
+| Feature | Nhân viên tự đổi mật khẩu |
+| User action | Click vào tên nhân viên ở sidebar, mở dropdown, chọn đổi mật khẩu |
+| Data needed | Xác nhận mật khẩu hiện tại và mật khẩu mới |
+| Existing API call | Cần thêm `api.post("/auth/change-password", { currentPassword, newPassword })` |
+| Expected endpoint | `POST /auth/change-password` |
+| Request params/body | `{ currentPassword: string, newPassword: string }` |
+| Expected response fields | `{ message: string }`; sau khi thành công nên logout local và đưa user về login |
+| Status | existing |
+
 ### `/dashboard` - Tổng quan
 
 | Hạng mục | Nội dung |

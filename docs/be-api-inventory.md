@@ -20,6 +20,7 @@ Ghi chú chung:
 | POST | `/api/v1/auth/refresh` | `src/routes/auth.ts` | Không |
 | POST | `/api/v1/auth/logout` | `src/routes/auth.ts` | JWT |
 | POST | `/api/v1/auth/logout-all` | `src/routes/auth.ts` | JWT |
+| POST | `/api/v1/auth/change-password` | `src/routes/auth.ts` | JWT |
 | GET | `/api/v1/auth/me` | `src/routes/auth.ts` | JWT |
 | GET | `/api/v1/items` | `src/routes/items.ts` | JWT + `view_items` |
 | GET | `/api/v1/items/:id` | `src/routes/items.ts` | JWT + `view_items` |
@@ -199,6 +200,41 @@ Ghi chú chung:
 ```
 
 - Notes/uncertainties: xóa tất cả session của `request.user.userId`; message chứa số thiết bị/session đã xóa.
+
+### POST `/api/v1/auth/change-password`
+
+- Handler file: `src/routes/auth.ts`
+- Auth: JWT qua `fastify.authenticate`.
+- Path params: không có.
+- Query params: không có.
+- Request body:
+
+```ts
+{
+  currentPassword: string;
+  newPassword: string; // minLength 6
+}
+```
+
+- Response shape:
+
+```ts
+{
+  message: "Đổi mật khẩu thành công, vui lòng đăng nhập lại";
+}
+```
+
+- Error shape có thể có:
+
+```ts
+// 400
+{ error: "Bad Request"; message: string }
+
+// 404
+{ error: "Not Found"; message: string }
+```
+
+- Notes/uncertainties: kiểm tra mật khẩu hiện tại trước khi đổi. Sau khi đổi mật khẩu, BE xóa tất cả refresh sessions của user để buộc đăng nhập lại.
 
 ### GET `/api/v1/auth/me`
 
