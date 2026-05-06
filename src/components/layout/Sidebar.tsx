@@ -69,10 +69,6 @@ export function Sidebar({ onClose }: SidebarProps) {
       setPasswordError("Vui lòng nhập đầy đủ thông tin");
       return;
     }
-    if (newPassword.length < 6) {
-      setPasswordError("Mật khẩu mới phải có ít nhất 6 ký tự");
-      return;
-    }
     if (newPassword !== confirmPassword) {
       setPasswordError("Xác nhận mật khẩu mới không khớp");
       return;
