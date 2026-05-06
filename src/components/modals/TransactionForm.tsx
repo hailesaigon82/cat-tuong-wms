@@ -43,6 +43,15 @@ function getItemLabel(item: ApiItem) {
   return `${item.code} - ${item.name}`;
 }
 
+function getTransactionErrorMessage(error: unknown, txType: TransactionType) {
+  if (!(error instanceof ApiError)) return "Không thể ghi nhận giao dịch, vui lòng thử lại";
+  if (error.message !== "Dữ liệu không hợp lệ") return error.message;
+
+  if (txType === "out") return "Không thể xuất kho. Vui lòng kiểm tra hàng hóa, số lượng xuất và tồn kho hiện tại";
+  if (txType === "in") return "Không thể nhập kho. Vui lòng kiểm tra hàng hóa và số lượng nhập";
+  return "Không thể điều chỉnh tồn kho. Vui lòng kiểm tra hàng hóa, số lượng mới và ghi chú điều chỉnh";
+}
+
 interface TransactionFormProps {
   type: TransactionType;
   allowTypeSwitch?: boolean;
@@ -68,7 +77,7 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
   const debouncedItemSearch = useDebounce(itemSearch, 300);
 
   const cfg = allowTypeSwitch ? { title: "Xuất Nhập", qtyLabel: "Số lượng" } : CONFIG[txType];
-  const qtyNum = parseInt(qty) || 0;
+  const qtyNum = Number(qty);
   const canIn = can("tx_in");
   const canOut = can("tx_out");
 
@@ -192,7 +201,15 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
 
   const submit = async () => {
     if (!selectedItem) { setAlert({ msg: "Vui lòng chọn hàng hóa", type: "error" }); return; }
-    if (qtyNum <= 0) { setAlert({ msg: "Số lượng phải lớn hơn 0", type: "error" }); return; }
+    if (!Number.isFinite(qtyNum) || qtyNum <= 0) { setAlert({ msg: "Vui lòng nhập số lượng lớn hơn 0", type: "error" }); return; }
+    if (!Number.isInteger(qtyNum)) { setAlert({ msg: "Số lượng phải là số nguyên", type: "error" }); return; }
+    if (txType === "out" && qtyNum > selectedItem.qty) {
+      setAlert({
+        msg: `Số lượng xuất (${qtyNum} ${selectedItem.unit}) vượt quá tồn kho hiện tại (${selectedItem.qty} ${selectedItem.unit})`,
+        type: "error",
+      });
+      return;
+    }
     if (txType === "adj" && !note.trim()) { setAlert({ msg: "Vui lòng nhập ghi chú điều chỉnh", type: "error" }); return; }
     setSaving(true); setAlert(null);
     try {
@@ -211,7 +228,7 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
       await loadRecentTransactions(selectedItem.id);
       setQty("1"); setNote("");
     } catch (e) {
-      setAlert({ msg: e instanceof ApiError ? e.message : "Có lỗi xảy ra", type: "error" });
+      setAlert({ msg: getTransactionErrorMessage(e, txType), type: "error" });
     } finally {
       setSaving(false);
     }
