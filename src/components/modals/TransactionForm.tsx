@@ -55,9 +55,10 @@ function getTransactionErrorMessage(error: unknown, txType: TransactionType) {
 interface TransactionFormProps {
   type: TransactionType;
   allowTypeSwitch?: boolean;
+  autoOpenScanner?: boolean;
 }
 
-export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFormProps) {
+export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner = false }: TransactionFormProps) {
   const can = useAppStore((s) => s.can);
   const [items, setItems]       = useState<ApiItem[]>([]);
   const [itemId, setItemId]     = useState<number | "">("");
@@ -69,7 +70,7 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
   const [note, setNote]         = useState("");
   const [loading, setLoading]   = useState(true);
   const [saving, setSaving]     = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
+  const [showScanner, setShowScanner] = useState(autoOpenScanner);
   const [alert, setAlert]       = useState<{ msg: string; type: "error" | "success" } | null>(null);
   const [recentTxs, setRecentTxs] = useState<ApiTransaction[]>([]);
   const [recentLoading, setRecentLoading] = useState(false);

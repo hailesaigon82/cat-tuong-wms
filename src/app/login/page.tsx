@@ -19,7 +19,12 @@ export default function LoginPage() {
   const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
-    if (currentUser) router.replace("/dashboard");
+    if (!currentUser) return;
+    if (currentUser.role.code === "warehouse") {
+      router.replace("/transactions?scan=1");
+      return;
+    }
+    router.replace("/dashboard");
   }, [currentUser, router]);
 
   useEffect(() => {
