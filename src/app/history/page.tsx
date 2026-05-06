@@ -2,7 +2,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { Card, CardHeader, Badge, Alert, Button } from "@/components/ui";
+import { Card, Badge, Alert, Button } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { fmtCurrency } from "@/lib/utils";
 import type { ApiTransaction, TransactionListResponse } from "@/types/api";
@@ -13,11 +13,18 @@ const TYPE_COLOR: Record<string, string> = {
 };
 
 const LIMIT = 20;
+type HistoryTab = "stock" | "adjustment";
+
+const TAB_LABEL: Record<HistoryTab, string> = {
+  stock: "Xuất nhập",
+  adjustment: "Điều chỉnh kho",
+};
 
 export default function HistoryPage() {
   const [txs, setTxs]       = useState<ApiTransaction[]>([]);
   const [total, setTotal]   = useState(0);
   const [page, setPage]     = useState(1);
+  const [activeTab, setActiveTab] = useState<HistoryTab>("stock");
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState("");
 
@@ -26,9 +33,10 @@ export default function HistoryPage() {
   const loadPage = useCallback(async (p: number) => {
     setLoading(true);
     setError("");
+    const typeQuery = activeTab === "stock" ? "types=in,out" : "type=adj";
     try {
       const res = await api.get<TransactionListResponse>(
-        `/transactions?limit=${LIMIT}&page=${p}`
+        `/transactions?limit=${LIMIT}&page=${p}&${typeQuery}`
       );
       setTxs(res.data);
       setTotal(res.pagination.total);
@@ -40,7 +48,7 @@ export default function HistoryPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
     loadPage(1);
@@ -51,7 +59,27 @@ export default function HistoryPage() {
       {error && <div className="mb-4"><Alert type="error" message={error} /></div>}
 
       <Card>
-        <CardHeader title={`Tổng ${total} giao dịch · Trang ${page}/${totalPages || 1}`} />
+        <div className="border-b border-gray-200 px-4 py-3">
+          <div className="flex gap-2">
+            {(["stock", "adjustment"] as HistoryTab[]).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  activeTab === tab
+                    ? "bg-[#185FA5] text-white"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                {TAB_LABEL[tab]}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 text-xs text-gray-400">
+            Tổng {total} giao dịch · Trang {page}/{totalPages || 1}
+          </div>
+        </div>
 
         {loading ? (
           <div className="text-center text-gray-400 py-8 text-sm">Đang tải...</div>

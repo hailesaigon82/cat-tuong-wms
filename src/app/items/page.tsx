@@ -7,7 +7,14 @@ import { Button, Badge, Card, Modal, FormGroup, Input, Select, Alert } from "@/c
 import { QRGenerator } from "@/components/qr/QRGenerator";
 import { api, ApiError } from "@/lib/api";
 import { fmtCurrency } from "@/lib/utils";
-import type { ApiItem, ApiCategory } from "@/types/api";
+import type { ApiItem, ApiCategory, ApiTransaction, TransactionListResponse } from "@/types/api";
+
+const TYPE_LABEL: Record<string, string> = { in: "Nhập kho", out: "Xuất kho", adj: "Điều chỉnh" };
+const TYPE_COLOR: Record<string, string> = {
+  in: "text-green-600",
+  out: "text-red-600",
+  adj: "text-amber-600",
+};
 
 type ModalState =
   | { type: "none" }
@@ -25,6 +32,10 @@ export default function ItemsPage() {
   const [modal, setModal]           = useState<ModalState>({ type: "none" });
   const [formError, setFormError]   = useState("");
   const [saving, setSaving]         = useState(false);
+  const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
+  const [recentTxsByItem, setRecentTxsByItem] = useState<Record<number, ApiTransaction[]>>({});
+  const [recentLoadingId, setRecentLoadingId] = useState<number | null>(null);
+  const [recentErrorByItem, setRecentErrorByItem] = useState<Record<number, string>>({});
   const [form, setForm]             = useState({
     categoryId: 0, name: "", code: "", unit: "cái", qty: 0, unitPrice: 0, minQty: 5,
   });
@@ -87,6 +98,32 @@ export default function ItemsPage() {
     catch (e) { alert(e instanceof ApiError ? e.message : "Xóa thất bại"); }
   };
 
+  const toggleItemTransactions = async (item: ApiItem) => {
+    if (expandedItemId === item.id) {
+      setExpandedItemId(null);
+      return;
+    }
+
+    setExpandedItemId(item.id);
+    if (recentTxsByItem[item.id] || recentLoadingId === item.id) return;
+
+    setRecentLoadingId(item.id);
+    setRecentErrorByItem((current) => ({ ...current, [item.id]: "" }));
+    try {
+      const res = await api.get<TransactionListResponse>(
+        `/transactions?limit=5&page=1&itemId=${item.id}`
+      );
+      setRecentTxsByItem((current) => ({ ...current, [item.id]: res.data }));
+    } catch (e) {
+      setRecentErrorByItem((current) => ({
+        ...current,
+        [item.id]: e instanceof ApiError ? e.message : "Không thể tải giao dịch gần nhất",
+      }));
+    } finally {
+      setRecentLoadingId(null);
+    }
+  };
+
   return (
     <AppShell title="Hàng hóa">
       <div className="flex gap-2 mb-4">
@@ -105,24 +142,31 @@ export default function ItemsPage() {
         <div className="flex flex-col gap-1">
           {filtered.map((i) => {
             const low = i.qty < i.minQty;
+            const expanded = expandedItemId === i.id;
+            const recentTxs = recentTxsByItem[i.id] ?? [];
+            const recentError = recentErrorByItem[i.id];
             return (
               <Card key={i.id} className="!mb-0">
-                <div className="px-2.5 py-1.5">
+                <div
+                  className="cursor-pointer px-2.5 py-1.5 transition-colors hover:bg-gray-50"
+                  onClick={() => toggleItemTransactions(i)}
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <Badge variant={i.category.code}>{i.code}</Badge>
                       <span className="text-sm font-medium text-gray-800 truncate">{i.name}</span>
+                      <span className="text-xs text-gray-400">{expanded ? "Thu gọn" : "Chi tiết"}</span>
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
                       {/* Nút QR */}
-                      <Button size="sm" onClick={() => setModal({ type: "qr", item: i })}>
+                      <Button size="sm" onClick={(e) => { e.stopPropagation(); setModal({ type: "qr", item: i }); }}>
                         QR
                       </Button>
                       {can("edit_items") && (
-                        <Button size="sm" onClick={() => openEdit(i)}>Sửa</Button>
+                        <Button size="sm" onClick={(e) => { e.stopPropagation(); openEdit(i); }}>Sửa</Button>
                       )}
                       {can("delete_items") && (
-                        <Button size="sm" variant="danger" onClick={() => handleDelete(i.id, i.code)}>Xóa</Button>
+                        <Button size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); handleDelete(i.id, i.code); }}>Xóa</Button>
                       )}
                     </div>
                   </div>
@@ -143,6 +187,44 @@ export default function ItemsPage() {
                     </div>
                   </div>
                 </div>
+                {expanded && (
+                  <div className="border-t border-gray-100 bg-gray-50 px-3 py-2.5">
+                    <div className="mb-2 text-xs font-semibold text-gray-600">5 giao dịch gần nhất</div>
+                    {recentLoadingId === i.id ? (
+                      <div className="text-sm text-gray-400">Đang tải giao dịch...</div>
+                    ) : recentError ? (
+                      <Alert type="error" message={recentError} />
+                    ) : recentTxs.length === 0 ? (
+                      <div className="rounded-md border border-dashed border-gray-200 bg-white px-3 py-3 text-center text-sm text-gray-400">
+                        Chưa có giao dịch nào cho hàng hóa này
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-100 rounded-md border border-gray-200 bg-white">
+                        {recentTxs.map((tx) => (
+                          <div key={tx.id} className="flex items-start justify-between gap-3 px-3 py-2">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <Badge variant={tx.type}>{TYPE_LABEL[tx.type]}</Badge>
+                                <span className="text-xs text-gray-400">
+                                  {new Date(tx.createdAt).toLocaleString("vi-VN")}
+                                </span>
+                              </div>
+                              <div className="mt-1 truncate text-xs text-gray-500">
+                                {tx.user?.name ?? "Không rõ người dùng"}{tx.note ? ` · ${tx.note}` : ""}
+                              </div>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <div className={`font-mono text-sm font-semibold ${TYPE_COLOR[tx.type]}`}>
+                                {tx.type === "in" ? "+" : tx.type === "out" ? "-" : "="}{tx.qty}
+                              </div>
+                              <div className="mt-0.5 text-xs text-gray-400">{fmtCurrency(tx.totalPrice)}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </Card>
             );
           })}
