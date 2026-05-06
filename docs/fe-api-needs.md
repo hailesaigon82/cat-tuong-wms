@@ -123,9 +123,9 @@ Ghi chú: menu không gọi backend trực tiếp; dữ liệu lấy từ auth s
 | Feature | Danh sách hàng hóa và tìm kiếm client-side |
 | User action | Mở trang hàng hóa, nhập ô tìm kiếm |
 | Data needed | Danh sách item user được phép xem |
-| Existing API call | `api.get<ApiItem[]>("/items")` |
+| Existing API call | `api.get<ApiItem[]>("/items")`; với dropdown/search lớn có thể gọi `api.get<ApiItem[]>(`/items?search=${term}&limit=20`)` |
 | Expected endpoint | `GET /items` |
-| Request params/body | Không có query params hiện tại |
+| Request params/body | Optional query: `search` hoặc `q`, `code`, `categoryId`, `page`, `limit` |
 | Expected response fields | `id`, `categoryId`, `name`, `code`, `unit`, `qty`, `unitPrice`, `minQty`, `isActive`, `category.id`, `category.code`, `category.name`, `createdAt`, `updatedAt` |
 | Status | existing |
 
@@ -189,7 +189,7 @@ Ghi chú: menu không gọi backend trực tiếp; dữ liệu lấy từ auth s
 | Expected response fields | Không có |
 | Status | existing |
 
-Ghi chú: tìm kiếm hiện là client-side trên danh sách đã load. Nếu số lượng item lớn, có thể cần endpoint server-side `GET /items?search=&page=&limit=`; hiện trạng thái là missing/optional, chưa có call FE.
+Ghi chú: với dropdown Hàng Hóa ở các form, nên dùng server-side search khi dữ liệu lớn: debounce input khoảng 250-400ms, gọi `GET /items?search=<term>&limit=20`, hiển thị loading state, và chỉ fallback `GET /items` full list cho màn hình quản lý cần toàn bộ dữ liệu.
 
 ### `/transactions/in` - Nhập kho
 
@@ -199,9 +199,9 @@ Ghi chú: tìm kiếm hiện là client-side trên danh sách đã load. Nếu s
 | Feature | Chọn hoặc quét QR hàng hóa để nhập kho |
 | User action | Mở trang, chọn hàng hoặc scan QR |
 | Data needed | Danh sách item user được phép thao tác, gồm tồn kho hiện tại |
-| Existing API call | `api.get<ApiItem[]>("/items")` |
+| Existing API call | `api.get<ApiItem[]>("/items")`; dropdown lớn nên dùng `GET /items?search=<term>&limit=20` |
 | Expected endpoint | `GET /items` |
-| Request params/body | Không có query params |
+| Request params/body | Optional query: `search` hoặc `q`, `code`, `categoryId`, `page`, `limit` |
 | Expected response fields | `id`, `code`, `name`, `qty`, `unit`, `unitPrice`, `category.code` |
 | Status | existing |
 
@@ -225,9 +225,9 @@ Ghi chú: tìm kiếm hiện là client-side trên danh sách đã load. Nếu s
 | Feature | Chọn hoặc quét QR hàng hóa để xuất kho |
 | User action | Mở trang, chọn hàng hoặc scan QR |
 | Data needed | Danh sách item user được phép thao tác, gồm tồn kho hiện tại |
-| Existing API call | `api.get<ApiItem[]>("/items")` |
+| Existing API call | `api.get<ApiItem[]>("/items")`; dropdown lớn nên dùng `GET /items?search=<term>&limit=20` |
 | Expected endpoint | `GET /items` |
-| Request params/body | Không có query params |
+| Request params/body | Optional query: `search` hoặc `q`, `code`, `categoryId`, `page`, `limit` |
 | Expected response fields | `id`, `code`, `name`, `qty`, `unit`, `unitPrice`, `category.code` |
 | Status | existing |
 
@@ -251,9 +251,9 @@ Ghi chú: tìm kiếm hiện là client-side trên danh sách đã load. Nếu s
 | Feature | Chọn hoặc quét QR hàng hóa để điều chỉnh tồn kho |
 | User action | Mở trang, chọn hàng hoặc scan QR |
 | Data needed | Danh sách item user được phép thao tác, gồm tồn kho hiện tại |
-| Existing API call | `api.get<ApiItem[]>("/items")` |
+| Existing API call | `api.get<ApiItem[]>("/items")`; dropdown lớn nên dùng `GET /items?search=<term>&limit=20` |
 | Expected endpoint | `GET /items` |
-| Request params/body | Không có query params |
+| Request params/body | Optional query: `search` hoặc `q`, `code`, `categoryId`, `page`, `limit` |
 | Expected response fields | `id`, `code`, `name`, `qty`, `unit`, `unitPrice`, `category.code` |
 | Status | existing |
 
@@ -382,8 +382,8 @@ Ghi chú: FE lọc role `admin` khỏi dropdown nếu current user không phải
 | Nhu cầu | Màn hình liên quan | Endpoint inferable | Lý do | Status |
 |---|---|---|---|---|
 | `allowedCategoryIds` trong auth response | Login, hydrate, permission/category UI | `POST /auth/login`, `GET /auth/me` | Pending đã nêu trong project context; FE types chưa khai báo field này | unclear |
-| Search/pagination server-side cho item | `/items`, `/transactions/*` | `GET /items?search=&page=&limit=` | Hiện FE load toàn bộ item rồi filter client-side; có thể không ổn nếu data lớn | missing/optional |
-| Lookup item realtime bằng QR/code | `/transactions/*`, `QRScanner` | `GET /items?code=H0001` hoặc `GET /items/by-code/{code}` | Scanner hiện chỉ tìm trong danh sách `/items` đã load | missing/optional |
+| Search/pagination server-side cho item | `/items`, `/transactions/*` | `GET /items?search=&page=&limit=` | BE đã hỗ trợ query search/limit trên response array cũ; FE nên dùng debounce cho dropdown lớn | existing |
+| Lookup item realtime bằng QR/code | `/transactions/*`, `QRScanner` | `GET /items?code=H0001` | BE đã hỗ trợ lookup bằng query `code`, vẫn lọc theo category access | existing |
 | Filter lịch sử nâng cao | `/history` | `GET /transactions?type=&from=&to=&itemId=&userId=&search=` | UI hiện chỉ phân trang, chưa có filter nghiệp vụ | missing/optional |
 | Contract bắt buộc note khi adjustment | `/transactions/adj` | `POST /transactions` | UI ghi `Ghi chú (bắt buộc)` nhưng FE gửi `note?: string`; cần thống nhất backend có require không | unclear |
 | Response body chuẩn cho create/update/delete | `/items`, `/users` | Các endpoint mutation hiện có | FE hiện không dùng body, chỉ refresh lại list; backend có thể trả success hoặc entity, cần chuẩn hóa docs backend | unclear |

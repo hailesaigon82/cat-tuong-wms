@@ -102,6 +102,7 @@ Ghi chú chung:
     id: number;
     name: string;
     username: string;
+    isActive: boolean;
     role: {
       id: number;
       code: string;
@@ -232,14 +233,26 @@ Ghi chú chung:
 }
 ```
 
-- Notes/uncertainties: `permissions` và `allowedCategoryIds` lấy từ JWT hiện tại, không reload lại từ DB trong handler.
+- Notes/uncertainties: user được lookup từ DB; `permissions` và `allowedCategoryIds` được reload từ DB tại thời điểm gọi `/auth/me`.
 
 ### GET `/api/v1/items`
 
 - Handler file: `src/routes/items.ts`
 - Auth: JWT + permission `view_items`.
 - Path params: không có.
-- Query params: không có.
+- Query params:
+
+```ts
+{
+  search?: string;     // tìm gần đúng theo code hoặc name, case-insensitive
+  q?: string;          // alias của search
+  code?: string;       // lookup chính xác theo code, BE uppercase trước khi so sánh
+  categoryId?: string; // số nguyên dương, vẫn bị giới hạn bởi role_category_access.canView
+  page?: string;       // số nguyên dương, default 1 khi có limit/filter
+  limit?: string;      // số nguyên dương, cap tối đa 100
+}
+```
+
 - Request body: không có.
 - Response shape:
 
@@ -266,7 +279,7 @@ Array<{
 }>
 ```
 
-- Notes/uncertainties: lọc item theo `role_category_access.canView` và `isActive: true`; sort theo `code asc`.
+- Notes/uncertainties: lọc item theo `role_category_access.canView` và `isActive: true`; sort theo `code asc`. Request cũ `GET /items` vẫn trả toàn bộ array như trước. Khi có query filter/search mà không truyền `limit`, BE mặc định giới hạn 50 item; dropdown nên gọi `GET /items?search=<term>&limit=20` với debounce 250-400ms.
 
 ### GET `/api/v1/items/:id`
 
@@ -292,7 +305,7 @@ Array<{
 }
 ```
 
-- Notes/uncertainties: không có params schema; `id` không parse được có thể đi vào Prisma dưới dạng `NaN`.
+- Notes/uncertainties: có params schema yêu cầu `id` là chuỗi số nguyên dương.
 
 ### POST `/api/v1/items`
 
@@ -363,7 +376,7 @@ Array<{
 { error: "Forbidden"; message: string }
 ```
 
-- Notes/uncertainties: body schema có `additionalProperties: true`, nên field ngoài schema có thể đi vào `request.body` và được truyền thẳng vào Prisma `data`.
+- Notes/uncertainties: body schema có `additionalProperties: true`, nhưng handler whitelist field trước khi truyền vào Prisma `data`.
 
 ### DELETE `/api/v1/items/:id`
 
@@ -404,7 +417,14 @@ Array<{
 - Handler file: `src/routes/items.ts`
 - Auth: JWT qua `fastify.authenticate`.
 - Path params: không có.
-- Query params: không có.
+- Query params:
+
+```ts
+{
+  action?: "view" | "create" | "edit" | "delete"; // default "view"
+}
+```
+
 - Request body: không có.
 - Response shape:
 
@@ -418,7 +438,7 @@ Array<{
 }>
 ```
 
-- Notes/uncertainties: hiện trả tất cả category active, không lọc theo `role_category_access`.
+- Notes/uncertainties: lọc category active theo `role_category_access` tương ứng với `action`: `view -> canView`, `create -> canCreate`, `edit -> canEdit`, `delete -> canDelete`.
 
 ### GET `/api/v1/transactions`
 
@@ -433,8 +453,8 @@ Array<{
   type?: string;   // không có schema enum ở query
   from?: string;   // new Date(from)
   to?: string;     // new Date(to)
-  page?: string;   // default "1", parseInt
-  limit?: string;  // default "50", parseInt
+  page?: string;   // default "1", số nguyên dương
+  limit?: string;  // default "50", số nguyên dương, cap tối đa 100
 }
 ```
 
@@ -491,7 +511,7 @@ Array<{
 }
 ```
 
-- Notes/uncertainties: lọc theo item thuộc category có `canView`. Query params chưa có schema validation, nên format sai có thể gây lỗi runtime.
+- Notes/uncertainties: lọc theo item thuộc category có `canView`. Query params có schema validation cho `itemId`, `type`, `page`, `limit`; `from` và `to` vẫn được parse bằng `new Date(...)`.
 
 ### POST `/api/v1/transactions`
 
@@ -545,7 +565,7 @@ Array<{
 { error: "Bad Request"; message: string }
 ```
 
-- Notes/uncertainties: item access đang kiểm theo `canView`, không theo action-specific category flag. Với `type: "adj"`, `note` bắt buộc ở runtime. Với `type: "out"`, kiểm tra không cho xuất vượt tồn kho hiện tại.
+- Notes/uncertainties: item access đang kiểm theo `canView`, không theo action-specific category flag. Với `type: "adj"`, `note` bắt buộc ở runtime. Với `type: "out"`, kiểm tra không cho xuất vượt tồn kho hiện tại. Stock mutation dùng Prisma transaction và conditional update để tránh race condition xuất kho.
 
 ### GET `/api/v1/transactions/summary`
 
@@ -726,7 +746,7 @@ Array<{
 { error: "Forbidden"; message: string }
 ```
 
-- Notes/uncertainties: non-admin không được sửa user admin hoặc gán role admin. Đổi username hoặc deactivate sẽ xóa sessions. Đổi role chưa thấy xóa sessions trong handler hiện tại.
+- Notes/uncertainties: non-admin không được sửa user admin hoặc gán role admin. Đổi username, đổi role hoặc deactivate sẽ xóa sessions.
 
 ### DELETE `/api/v1/users/:id`
 

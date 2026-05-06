@@ -28,6 +28,17 @@ const TYPE_TEXT: Record<TransactionType, string> = {
   adj: "text-amber-600",
 };
 
+function useDebounce<T>(value: T, delayMs: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedValue(value), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [value, delayMs]);
+
+  return debouncedValue;
+}
+
 interface TransactionFormProps {
   type: TransactionType;
   allowTypeSwitch?: boolean;
@@ -37,6 +48,8 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
   const can = useAppStore((s) => s.can);
   const [items, setItems]       = useState<ApiItem[]>([]);
   const [itemId, setItemId]     = useState<number | "">("");
+  const [selectedItem, setSelectedItem] = useState<ApiItem | null>(null);
+  const [itemSearch, setItemSearch] = useState("");
   const [txType, setTxType]     = useState<TransactionType>(type);
   const [qty, setQty]           = useState("1");
   const [note, setNote]         = useState("");
@@ -47,9 +60,9 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
   const [recentTxs, setRecentTxs] = useState<ApiTransaction[]>([]);
   const [recentLoading, setRecentLoading] = useState(false);
   const [recentError, setRecentError] = useState("");
+  const debouncedItemSearch = useDebounce(itemSearch, 300);
 
   const cfg = allowTypeSwitch ? { title: "Xuất Nhập", qtyLabel: "Số lượng" } : CONFIG[txType];
-  const selectedItem = items.find((i) => i.id === Number(itemId));
   const qtyNum = parseInt(qty) || 0;
   const canIn = can("tx_in");
   const canOut = can("tx_out");
@@ -64,11 +77,31 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
   }, [allowTypeSwitch, canIn, canOut, txType, type]);
 
   useEffect(() => {
-    api.get<ApiItem[]>("/items")
-      .then(setItems)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    let active = true;
+    const query = debouncedItemSearch.trim();
+    setLoading(true);
+    api.get<ApiItem[]>(
+      query
+        ? `/items?search=${encodeURIComponent(query)}&limit=20`
+        : "/items?limit=20"
+    )
+      .then((data) => {
+        if (!active) return;
+        setItems(() => {
+          if (!selectedItem || data.some((i) => i.id === selectedItem.id)) return data;
+          return [selectedItem, ...data];
+        });
+      })
+      .catch(() => {
+        if (active) setItems(selectedItem ? [selectedItem] : []);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [debouncedItemSearch, selectedItem]);
 
   const loadRecentTransactions = useCallback(async (nextItemId: number) => {
     setRecentLoading(true);
@@ -97,36 +130,61 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
 
   // Xử lý khi scan QR hàng hóa
   // Hỗ trợ cả "ITEM-H0001" lẫn "H0001"
-  const handleQRScan = (data: string) => {
+  const handleQRScan = async (data: string) => {
     const code = data.startsWith("ITEM-") ? data.replace("ITEM-", "") : data;
     const item = items.find((i) => i.code.toUpperCase() === code.toUpperCase());
     if (item) {
       setItemId(item.id);
+      setSelectedItem(item);
       setShowScanner(false);
       setAlert(null);
     } else {
-      setAlert({ msg: `Không tìm thấy hàng hóa: ${code}`, type: "error" });
-      setShowScanner(false);
+      try {
+        const matchedItems = await api.get<ApiItem[]>(`/items?code=${encodeURIComponent(code)}`);
+        const matchedItem = matchedItems[0];
+        if (!matchedItem) {
+          setAlert({ msg: "Không tìm thấy hàng hóa hoặc bạn không có quyền truy cập", type: "error" });
+          setShowScanner(false);
+          return;
+        }
+        setItems((current) => {
+          if (current.some((i) => i.id === matchedItem.id)) return current;
+          return [...current, matchedItem].sort((a, b) => a.code.localeCompare(b.code));
+        });
+        setItemId(matchedItem.id);
+        setSelectedItem(matchedItem);
+        setShowScanner(false);
+        setAlert(null);
+      } catch (e) {
+        setAlert({ msg: e instanceof ApiError ? e.message : "Không tìm thấy hàng hóa hoặc bạn không có quyền truy cập", type: "error" });
+        setShowScanner(false);
+      }
     }
+  };
+
+  const selectItem = (nextItemId: number | "") => {
+    setItemId(nextItemId);
+    const nextItem = items.find((i) => i.id === Number(nextItemId)) ?? null;
+    setSelectedItem(nextItem);
   };
 
   const submit = async () => {
     if (!selectedItem) { setAlert({ msg: "Vui lòng chọn hàng hóa", type: "error" }); return; }
     if (qtyNum <= 0) { setAlert({ msg: "Số lượng phải lớn hơn 0", type: "error" }); return; }
-    if (!note.trim()) { setAlert({ msg: "Vui lòng nhập ghi chú", type: "error" }); return; }
+    if (txType === "adj" && !note.trim()) { setAlert({ msg: "Vui lòng nhập ghi chú điều chỉnh", type: "error" }); return; }
     setSaving(true); setAlert(null);
     try {
       const res = await api.post<{ newQty: number }>("/transactions", {
         itemId: selectedItem.id, type: txType, qty: qtyNum,
-        note: note.trim(),
+        ...(note.trim() ? { note: note.trim() } : {}),
       });
       setAlert({
         msg: `✅ ${CONFIG[txType].title} thành công! Tồn kho mới: ${res.newQty} ${selectedItem.unit}`,
         type: "success",
       });
-      // Refresh danh sách để cập nhật qty
-      const updated = await api.get<ApiItem[]>("/items");
-      setItems(updated);
+      const updatedItem = { ...selectedItem, qty: res.newQty };
+      setSelectedItem(updatedItem);
+      setItems((current) => current.map((item) => item.id === updatedItem.id ? updatedItem : item));
       await loadRecentTransactions(selectedItem.id);
       setQty("1"); setNote("");
     } catch (e) {
@@ -148,6 +206,8 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
 
   const resetForm = () => {
     setItemId("");
+    setSelectedItem(null);
+    setItemSearch("");
     setQty("1");
     setNote("");
     setAlert(null);
@@ -188,12 +248,20 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
             <div>
               <div className="mb-[18px]">
                 <FormGroup label="Hàng hóa" required>
+                  <Input
+                    value={itemSearch}
+                    onChange={(e) => setItemSearch(e.target.value)}
+                    placeholder="Gõ mã hoặc tên hàng hóa..."
+                    className="mb-2"
+                  />
                   <Select
                     value={itemId}
-                    onChange={(e) => setItemId(Number(e.target.value) || "")}
+                    onChange={(e) => selectItem(Number(e.target.value) || "")}
                     disabled={loading}
                   >
-                    <option value="">{loading ? "Đang tải..." : "-- Chọn hàng hóa --"}</option>
+                    <option value="">
+                      {loading ? "Đang tải hàng hóa..." : items.length ? "-- Chọn hàng hóa --" : "Không có kết quả"}
+                    </option>
                     {items.map((i) => (
                       <option key={i.id} value={i.id}>
                         {i.code} — {i.name} (Tồn: {i.qty} {i.unit})
@@ -282,7 +350,7 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
               </div>
 
               <div className="mb-[18px]">
-                <FormGroup label="Ghi chú" required>
+                <FormGroup label="Ghi chú" required={txType === "adj"}>
                   <Textarea
                     rows={4} value={note}
                     onChange={(e) => setNote(e.target.value)}
