@@ -5,11 +5,14 @@ import { useAppStore, ROLE_NAMES } from "@/store";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 
-const NAV = [
+type NavItem =
+  | { path: string; label: string; icon: string; permission: string; permissions?: never }
+  | { path: string; label: string; icon: string; permissions: string[]; permission?: never };
+
+const NAV: NavItem[] = [
   { path: "/dashboard",        label: "Tổng quan",  icon: "📊", permission: "view_dashboard" },
   { path: "/items",            label: "Hàng hóa",   icon: "📦", permission: "view_items"     },
-  { path: "/transactions/in",  label: "Nhập kho",   icon: "📥", permission: "tx_in"          },
-  { path: "/transactions/out", label: "Xuất kho",   icon: "📤", permission: "tx_out"         },
+  { path: "/transactions",     label: "Xuất Nhập",  icon: "↕️", permissions: ["tx_in", "tx_out"] },
   { path: "/transactions/adj", label: "Điều chỉnh", icon: "⚖️", permission: "tx_adj"         },
   { path: "/history",          label: "Lịch sử",    icon: "📋", permission: "view_history"   },
   { path: "/users",            label: "Người dùng", icon: "👥", permission: "manage_users"   },
@@ -27,7 +30,11 @@ export function Sidebar({ onClose }: SidebarProps) {
   const pathname    = usePathname();
 
   if (!currentUser) return null;
-  const visibleNav = NAV.filter((n) => can(n.permission));
+  const canSeeNavItem = (n: NavItem) => {
+    if (Array.isArray(n.permissions)) return n.permissions.some((permission) => can(permission));
+    return typeof n.permission === "string" && can(n.permission);
+  };
+  const visibleNav = NAV.filter(canSeeNavItem);
 
   const navigate = (path: string) => {
     router.push(path);
@@ -72,7 +79,9 @@ export function Sidebar({ onClose }: SidebarProps) {
       {/* Nav */}
       <nav className="flex-1 py-2 overflow-y-auto">
         {visibleNav.map((n) => {
-          const active = pathname === n.path || pathname.startsWith(n.path + "/");
+          const active = n.path === "/transactions"
+            ? ["/transactions", "/transactions/in", "/transactions/out"].includes(pathname)
+            : pathname === n.path || pathname.startsWith(n.path + "/");
           return (
             <button
               key={n.path}
