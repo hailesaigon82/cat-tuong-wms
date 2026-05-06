@@ -2,12 +2,12 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { Button, Alert, Badge, Card, FormGroup, Select, Input, Textarea } from "@/components/ui";
+import { Button, Alert, Badge, Card, FormGroup, Input, Textarea } from "@/components/ui";
 import { QRScanner } from "@/components/qr/QRScanner";
 import { api, ApiError } from "@/lib/api";
 import { cn, fmtCurrency } from "@/lib/utils";
 import { useAppStore } from "@/store";
-import { ArrowDownToLine, ArrowUpFromLine, Minus, Plus, QrCode } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, Minus, Plus, QrCode } from "lucide-react";
 import type { ApiItem, ApiTransaction, TransactionListResponse, TransactionType } from "@/types/api";
 
 const CONFIG: Record<TransactionType, { title: string; qtyLabel: string }> = {
@@ -39,6 +39,10 @@ function useDebounce<T>(value: T, delayMs: number) {
   return debouncedValue;
 }
 
+function getItemLabel(item: ApiItem) {
+  return `${item.code} - ${item.name}`;
+}
+
 interface TransactionFormProps {
   type: TransactionType;
   allowTypeSwitch?: boolean;
@@ -50,6 +54,7 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
   const [itemId, setItemId]     = useState<number | "">("");
   const [selectedItem, setSelectedItem] = useState<ApiItem | null>(null);
   const [itemSearch, setItemSearch] = useState("");
+  const [itemDropdownOpen, setItemDropdownOpen] = useState(false);
   const [txType, setTxType]     = useState<TransactionType>(type);
   const [qty, setQty]           = useState("1");
   const [note, setNote]         = useState("");
@@ -78,7 +83,9 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
 
   useEffect(() => {
     let active = true;
-    const query = debouncedItemSearch.trim();
+    const query = selectedItem && debouncedItemSearch === getItemLabel(selectedItem)
+      ? ""
+      : debouncedItemSearch.trim();
     setLoading(true);
     api.get<ApiItem[]>(
       query
@@ -136,6 +143,8 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
     if (item) {
       setItemId(item.id);
       setSelectedItem(item);
+      setItemSearch(getItemLabel(item));
+      setItemDropdownOpen(false);
       setShowScanner(false);
       setAlert(null);
     } else {
@@ -153,6 +162,8 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
         });
         setItemId(matchedItem.id);
         setSelectedItem(matchedItem);
+        setItemSearch(getItemLabel(matchedItem));
+        setItemDropdownOpen(false);
         setShowScanner(false);
         setAlert(null);
       } catch (e) {
@@ -162,10 +173,21 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
     }
   };
 
-  const selectItem = (nextItemId: number | "") => {
-    setItemId(nextItemId);
-    const nextItem = items.find((i) => i.id === Number(nextItemId)) ?? null;
+  const selectItem = (nextItem: ApiItem) => {
+    setItemId(nextItem.id);
     setSelectedItem(nextItem);
+    setItemSearch(getItemLabel(nextItem));
+    setItemDropdownOpen(false);
+    setAlert(null);
+  };
+
+  const handleItemSearchChange = (value: string) => {
+    setItemSearch(value);
+    setItemDropdownOpen(true);
+    if (selectedItem && value !== getItemLabel(selectedItem)) {
+      setItemId("");
+      setSelectedItem(null);
+    }
   };
 
   const submit = async () => {
@@ -184,6 +206,7 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
       });
       const updatedItem = { ...selectedItem, qty: res.newQty };
       setSelectedItem(updatedItem);
+      setItemSearch(getItemLabel(updatedItem));
       setItems((current) => current.map((item) => item.id === updatedItem.id ? updatedItem : item));
       await loadRecentTransactions(selectedItem.id);
       setQty("1"); setNote("");
@@ -208,6 +231,7 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
     setItemId("");
     setSelectedItem(null);
     setItemSearch("");
+    setItemDropdownOpen(false);
     setQty("1");
     setNote("");
     setAlert(null);
@@ -232,7 +256,6 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
                 <QrCode size={16} />
                 Quét mã QR hàng hóa
               </button>
-              <span className="text-sm text-gray-400">hoặc chọn bên dưới</span>
             </div>
 
             {showScanner && (
@@ -248,38 +271,69 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
             <div>
               <div className="mb-[18px]">
                 <FormGroup label="Hàng hóa" required>
-                  <Input
-                    value={itemSearch}
-                    onChange={(e) => setItemSearch(e.target.value)}
-                    placeholder="Gõ mã hoặc tên hàng hóa..."
-                    className="mb-2"
-                  />
-                  <Select
-                    value={itemId}
-                    onChange={(e) => selectItem(Number(e.target.value) || "")}
-                    disabled={loading}
-                  >
-                    <option value="">
-                      {loading ? "Đang tải hàng hóa..." : items.length ? "-- Chọn hàng hóa --" : "Không có kết quả"}
-                    </option>
-                    {items.map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.code} — {i.name} (Tồn: {i.qty} {i.unit})
-                      </option>
-                    ))}
-                  </Select>
+                  <div className="relative">
+                    <Input
+                      value={itemSearch}
+                      onChange={(e) => handleItemSearchChange(e.target.value)}
+                      onFocus={() => setItemDropdownOpen(true)}
+                      onBlur={() => window.setTimeout(() => setItemDropdownOpen(false), 120)}
+                      placeholder="Gõ mã hoặc tên hàng hóa..."
+                      autoComplete="off"
+                      role="combobox"
+                      aria-expanded={itemDropdownOpen}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setItemDropdownOpen((open) => !open)}
+                      className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                      aria-label="Mở danh sách hàng hóa"
+                    >
+                      <ChevronDown size={16} />
+                    </button>
+
+                    {itemDropdownOpen && (
+                      <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                        {loading ? (
+                          <div className="px-3 py-2 text-sm text-gray-400">Đang tải hàng hóa...</div>
+                        ) : items.length === 0 ? (
+                          <div className="px-3 py-2 text-sm text-gray-400">Không có kết quả</div>
+                        ) : (
+                          items.map((i) => (
+                            <button
+                              key={i.id}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => selectItem(i)}
+                              className={cn(
+                                "flex w-full px-3 py-2 text-left text-sm transition hover:bg-gray-50",
+                                itemId === i.id && "bg-blue-50"
+                              )}
+                            >
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-medium text-gray-800">{i.code} - {i.name}</span>
+                                <span className="block truncate text-xs text-gray-400">{i.category.code} · {i.category.name}</span>
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </FormGroup>
               </div>
 
               <div className="mb-[18px]">
-                <FormGroup label="Tồn kho">
+                <div className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-3">
+                  <label className="text-xs font-medium text-gray-600">Tồn kho</label>
                   <Input
                     value={selectedItem ? `${selectedItem.qty} ${selectedItem.unit}` : ""}
                     readOnly
                     className="bg-gray-50"
                     placeholder="Chọn hàng hóa để xem tồn kho"
                   />
-                </FormGroup>
+                </div>
               </div>
 
               {allowTypeSwitch && (
@@ -318,7 +372,10 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
               )}
 
               <div className="mb-[18px]">
-                <FormGroup label={cfg.qtyLabel} required>
+                <div className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-3">
+                  <label className="text-xs font-medium text-gray-600">
+                    {cfg.qtyLabel} <span className="text-red-500">*</span>
+                  </label>
                   <div className="flex max-w-[220px] items-stretch overflow-hidden rounded-md border border-[#ced4da] bg-white transition focus-within:border-[#86b7fe] focus-within:shadow-[0_0_0_0.25rem_rgba(13,110,253,.25)]">
                     <button
                       type="button"
@@ -346,7 +403,7 @@ export function TransactionForm({ type, allowTypeSwitch = false }: TransactionFo
                       <Plus size={16} strokeWidth={3} />
                     </button>
                   </div>
-                </FormGroup>
+                </div>
               </div>
 
               <div className="mb-[18px]">
