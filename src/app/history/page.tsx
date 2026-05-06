@@ -1,6 +1,6 @@
 // src/app/history/page.tsx
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, Badge, Alert, Button } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
@@ -27,10 +27,13 @@ export default function HistoryPage() {
   const [activeTab, setActiveTab] = useState<HistoryTab>("stock");
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState("");
+  const requestSeq = useRef(0);
 
   const totalPages = Math.ceil(total / LIMIT);
 
   const loadPage = useCallback(async (p: number) => {
+    const seq = requestSeq.current + 1;
+    requestSeq.current = seq;
     setLoading(true);
     setError("");
     const typeQuery = activeTab === "stock" ? "types=in,out" : "type=adj";
@@ -38,15 +41,20 @@ export default function HistoryPage() {
       const res = await api.get<TransactionListResponse>(
         `/transactions?limit=${LIMIT}&page=${p}&${typeQuery}`
       );
+      if (requestSeq.current !== seq) return;
       setTxs(res.data);
       setTotal(res.pagination.total);
       setPage(p);
       // Scroll lên đầu khi chuyển trang
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Không thể tải lịch sử");
+      if (requestSeq.current === seq) {
+        setError(e instanceof ApiError ? e.message : "Không thể tải lịch sử");
+      }
     } finally {
-      setLoading(false);
+      if (requestSeq.current === seq) {
+        setLoading(false);
+      }
     }
   }, [activeTab]);
 

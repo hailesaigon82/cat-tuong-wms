@@ -451,7 +451,7 @@ Array<{
 ### GET `/api/v1/items/categories`
 
 - Handler file: `src/routes/items.ts`
-- Auth: JWT qua `fastify.authenticate`.
+- Auth: JWT qua `fastify.authenticate`; yêu cầu permission theo action: `view_items`, `create_items`, `edit_items`, hoặc `delete_items`.
 - Path params: không có.
 - Query params:
 
@@ -658,7 +658,7 @@ Array<{
 }>
 ```
 
-- Notes/uncertainties: route này được đăng ký trong `usersRoutes`. File cũng export `registerUsersExtra()` có route cùng path nhưng hàm đó không được register trong `src/app.ts`, nên không tính là endpoint runtime hiện tại.
+- Notes/uncertainties: route này được đăng ký trong `usersRoutes`. Requester không phải `roleCode === "admin"` không nhận role `admin` trong dropdown. File cũng export `registerUsersExtra()` có route cùng path nhưng hàm đó không được register trong `src/app.ts`, nên không tính là endpoint runtime hiện tại.
 
 ### GET `/api/v1/users`
 

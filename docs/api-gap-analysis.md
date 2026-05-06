@@ -46,7 +46,7 @@ Quy ước trạng thái:
 | QR-01 | `QRScanner` - scan user/item QR | Mở camera và scan QR | Không cần API riêng | Không cần BE API | Match | Scanner xử lý payload local; transaction scan map với list item đã load. | Không cần đổi cho flow hiện tại. | None | P2 |
 | HIST-01 | `/history` - phân trang giao dịch | Mở history, bấm chuyển trang | `GET /transactions?limit=20&page={page}` | `GET /api/v1/transactions` | Match | BE hỗ trợ `page` và `limit`, response pagination khớp. | Không cần đổi cho nhu cầu hiện tại. | None | P2 |
 | USER-01 | `/users` - danh sách user | Mở trang users | `GET /users` | `GET /api/v1/users` | Match | Response khớp; BE inventory ghi non-admin không nhận user admin, phù hợp rule manager không quản lý admin. | Không cần đổi. | None | P2 |
-| USER-02 | `/users` - role dropdown | Bấm thêm/sửa user | `GET /users/roles` | `GET /api/v1/users/roles` | Partial | FE need là danh sách role có thể gán; BE endpoint chỉ yêu cầu JWT và inventory không ghi lọc assignable roles. FE đang tự lọc role `admin` cho non-admin. | Nên để BE trả roles assignable theo requester, hoặc đổi tên/ghi contract rõ endpoint trả tất cả roles và FE tự lọc. | Both | P2 |
+| USER-02 | `/users` - role dropdown | Bấm thêm/sửa user | `GET /users/roles` | `GET /api/v1/users/roles` | Match | BE trả role active có thể gán theo requester; non-admin không nhận role `admin`. | FE có thể bỏ hoặc giữ lớp lọc admin phụ, nhưng không cần phụ thuộc vào đó để enforce. | FE | P2 |
 | USER-03 | `/users` - tạo user | Submit modal thêm user | `POST /users` | `POST /api/v1/users` | Match | Body và response khớp; BE enforce non-admin không tạo admin. | Không cần đổi. | None | P2 |
 | USER-04 | `/users` - sửa user | Submit modal sửa user | `PUT /users/{id}` | `PUT /api/v1/users/:id` | Match | Body FE gửi là subset hợp lệ; BE enforce non-admin không sửa/gán admin. | Không cần đổi. | None | P2 |
 | USER-05 | `/users` - xóa/vô hiệu user | Bấm `Xóa` và confirm | `DELETE /users/{id}` | `DELETE /api/v1/users/:id` | Match | BE soft delete, không cho tự xóa, không cho non-admin xóa admin. FE chỉ cần success/failure. | Không cần đổi. | None | P2 |
@@ -96,7 +96,7 @@ Các mục nên xử lý trước ở mức P1:
 |---|---|---|---|---|
 | `GET` | `/api/v1/items` | Optional: `search`/`q`, `page`, `limit`, `code`, `categoryId` | `Item[]` | Giữ response array để tương thích. Khi có filter mà không truyền `limit`, BE mặc định cap 50; dropdown nên dùng debounce và `limit=20`. |
 | `GET` | `/api/v1/items/:id` | Path `id` | `Item` | Chưa dùng ở FE. |
-| `GET` | `/api/v1/items/categories` | Optional `action=view|create|edit|delete`, default `view` | `Category[]` | BE lọc theo `role_category_access` tương ứng với action. |
+| `GET` | `/api/v1/items/categories` | Optional `action=view|create|edit|delete`, default `view` | `Category[]` | BE kiểm permission theo action và lọc theo `role_category_access` tương ứng với action. |
 | `POST` | `/api/v1/items` | `{ categoryId, name, code, unit, qty?, unitPrice, minQty? }` | Created `Item` | Giữ uppercase code ở BE. |
 | `PUT` | `/api/v1/items/:id` | `{ name?, unit?, unitPrice?, minQty?, isActive? }` | Updated `Item` | Giữ permission/category checks ở BE. |
 | `DELETE` | `/api/v1/items/:id` | Path `id` | `{ message }` | Soft delete như hiện tại. |
@@ -114,7 +114,7 @@ Các mục nên xử lý trước ở mức P1:
 | Method | Path | Request | Response chính | Notes |
 |---|---|---|---|---|
 | `GET` | `/api/v1/users` | none | `User[]` | BE lọc admin khỏi non-admin requester theo inventory. |
-| `GET` | `/api/v1/users/roles` | none | `Role[]` | Nên quyết định endpoint trả all roles hay assignable roles theo requester. |
+| `GET` | `/api/v1/users/roles` | none | `Role[]` | Trả role active có thể gán theo requester; non-admin không nhận role `admin`. |
 | `POST` | `/api/v1/users` | `{ roleId, name, username, password }` | Created `User` | BE enforce non-admin không tạo admin. |
 | `PUT` | `/api/v1/users/:id` | `{ roleId?, name?, username?, password?, isActive? }` | Updated `User` | BE enforce non-admin không sửa/gán admin. |
 | `DELETE` | `/api/v1/users/:id` | Path `id` | `{ message }` | Soft delete và xóa sessions như hiện tại. |

@@ -68,7 +68,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   const [txType, setTxType]     = useState<TransactionType>(type);
   const [qty, setQty]           = useState("1");
   const [note, setNote]         = useState("");
-  const [loading, setLoading]   = useState(true);
+  const [itemsLoading, setItemsLoading] = useState(true);
   const [saving, setSaving]     = useState(false);
   const [showScanner, setShowScanner] = useState(autoOpenScanner);
   const [alert, setAlert]       = useState<{ msg: string; type: "error" | "success" } | null>(null);
@@ -92,11 +92,17 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   }, [allowTypeSwitch, canIn, canOut, txType, type]);
 
   useEffect(() => {
+    if (autoOpenScanner) {
+      setShowScanner(true);
+    }
+  }, [autoOpenScanner]);
+
+  useEffect(() => {
     let active = true;
     const query = selectedItem && debouncedItemSearch === getItemLabel(selectedItem)
       ? ""
       : debouncedItemSearch.trim();
-    setLoading(true);
+    setItemsLoading(true);
     api.get<ApiItem[]>(
       query
         ? `/items?search=${encodeURIComponent(query)}&limit=20`
@@ -113,7 +119,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
         if (active) setItems(selectedItem ? [selectedItem] : []);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) setItemsLoading(false);
       });
     return () => {
       active = false;
@@ -316,7 +322,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
 
                     {itemDropdownOpen && (
                       <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-[#9aa8b5] bg-white py-1 shadow-[0_12px_28px_rgba(15,23,42,0.18)]">
-                        {loading ? (
+                        {itemsLoading ? (
                           <div className="px-3 py-2 text-sm text-gray-400">Đang tải hàng hóa...</div>
                         ) : items.length === 0 ? (
                           <div className="px-3 py-2 text-sm text-gray-400">Không có kết quả</div>
@@ -440,7 +446,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
             </div>
 
             <div className="mt-[22px] flex gap-2.5">
-              <Button variant="primary" onClick={submit} disabled={saving || loading}>
+              <Button variant="primary" onClick={submit} disabled={saving}>
                 {saving ? "Đang xử lý..." : "Xác nhận"}
               </Button>
               <Button onClick={resetForm}>
