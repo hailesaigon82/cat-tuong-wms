@@ -1,6 +1,6 @@
 // src/components/modals/TransactionForm.tsx
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button, Alert, Badge, Card, FormGroup, Input, Textarea } from "@/components/ui";
 import { QRScanner } from "@/components/qr/QRScanner";
@@ -76,11 +76,20 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   const [recentLoading, setRecentLoading] = useState(false);
   const [recentError, setRecentError] = useState("");
   const debouncedItemSearch = useDebounce(itemSearch, 300);
+  const alertRef = useRef<HTMLDivElement | null>(null);
 
   const cfg = allowTypeSwitch ? { title: "Xuất Nhập", qtyLabel: "Số lượng" } : CONFIG[txType];
   const qtyNum = Number(qty);
   const canIn = can("tx_in");
   const canOut = can("tx_out");
+
+  const showAlert = useCallback((nextAlert: { msg: string; type: "error" | "success" }) => {
+    setAlert(nextAlert);
+    window.requestAnimationFrame(() => {
+      alertRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      alertRef.current?.focus();
+    });
+  }, []);
 
   useEffect(() => {
     if (!allowTypeSwitch) {
@@ -168,7 +177,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
         const matchedItems = await api.get<ApiItem[]>(`/items?code=${encodeURIComponent(code)}`);
         const matchedItem = matchedItems[0];
         if (!matchedItem) {
-          setAlert({ msg: "Không tìm thấy hàng hóa hoặc bạn không có quyền truy cập", type: "error" });
+          showAlert({ msg: "Không tìm thấy hàng hóa hoặc bạn không có quyền truy cập", type: "error" });
           setShowScanner(false);
           return;
         }
@@ -183,7 +192,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
         setShowScanner(false);
         setAlert(null);
       } catch (e) {
-        setAlert({ msg: e instanceof ApiError ? e.message : "Không tìm thấy hàng hóa hoặc bạn không có quyền truy cập", type: "error" });
+        showAlert({ msg: e instanceof ApiError ? e.message : "Không tìm thấy hàng hóa hoặc bạn không có quyền truy cập", type: "error" });
         setShowScanner(false);
       }
     }
@@ -207,24 +216,24 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   };
 
   const submit = async () => {
-    if (!selectedItem) { setAlert({ msg: "Vui lòng chọn hàng hóa", type: "error" }); return; }
-    if (!Number.isFinite(qtyNum) || qtyNum <= 0) { setAlert({ msg: "Vui lòng nhập số lượng lớn hơn 0", type: "error" }); return; }
-    if (!Number.isInteger(qtyNum)) { setAlert({ msg: "Số lượng phải là số nguyên", type: "error" }); return; }
+    if (!selectedItem) { showAlert({ msg: "Vui lòng chọn hàng hóa", type: "error" }); return; }
+    if (!Number.isFinite(qtyNum) || qtyNum <= 0) { showAlert({ msg: "Vui lòng nhập số lượng lớn hơn 0", type: "error" }); return; }
+    if (!Number.isInteger(qtyNum)) { showAlert({ msg: "Số lượng phải là số nguyên", type: "error" }); return; }
     if (txType === "out" && qtyNum > selectedItem.qty) {
-      setAlert({
+      showAlert({
         msg: `Số lượng xuất (${qtyNum} ${selectedItem.unit}) vượt quá tồn kho hiện tại (${selectedItem.qty} ${selectedItem.unit})`,
         type: "error",
       });
       return;
     }
-    if (!note.trim()) { setAlert({ msg: "Vui lòng nhập ghi chú", type: "error" }); return; }
+    if (!note.trim()) { showAlert({ msg: "Vui lòng nhập ghi chú", type: "error" }); return; }
     setSaving(true); setAlert(null);
     try {
       const res = await api.post<{ newQty: number }>("/transactions", {
         itemId: selectedItem.id, type: txType, qty: qtyNum,
         ...(note.trim() ? { note: note.trim() } : {}),
       });
-      setAlert({
+      showAlert({
         msg: `✅ ${CONFIG[txType].title} thành công! Tồn kho mới: ${res.newQty} ${selectedItem.unit}`,
         type: "success",
       });
@@ -235,7 +244,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
       await loadRecentTransactions(selectedItem.id);
       setQty("1"); setNote("");
     } catch (e) {
-      setAlert({ msg: getTransactionErrorMessage(e, txType), type: "error" });
+      showAlert({ msg: getTransactionErrorMessage(e, txType), type: "error" });
     } finally {
       setSaving(false);
     }
@@ -268,7 +277,11 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
       <div className="max-w-[620px]">
         <Card className="rounded-lg shadow-sm">
           <div className="p-6">
-            {alert && <div className="mb-4"><Alert type={alert.type} message={alert.msg} /></div>}
+            {alert && (
+              <div ref={alertRef} tabIndex={-1} className="mb-4 outline-none">
+                <Alert type={alert.type} message={alert.msg} />
+              </div>
+            )}
 
             {/* QR Scanner toggle */}
             <div className="mb-5 flex items-center gap-3.5">
