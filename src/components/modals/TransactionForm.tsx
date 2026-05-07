@@ -80,6 +80,10 @@ function hasMaxTwoDecimals(value: number) {
   return Number.isFinite(value) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-9;
 }
 
+function isDecimalInputAllowed(value: string) {
+  return value === "" || /^\d+(\.\d{0,2})?$/.test(value);
+}
+
 function round2(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -275,6 +279,11 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
       setItemId("");
       setSelectedItem(null);
     }
+  };
+
+  const handleQtyChange = (value: string) => {
+    if (!isDecimalInputAllowed(value)) return;
+    setQty(value);
   };
 
   const submit = async () => {
@@ -607,9 +616,9 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                     type="number"
                     min={txType === "adj" ? 0 : 0.01}
                     step={0.01}
-                    inputMode="numeric"
+                    inputMode="decimal"
                     value={qty}
-                    onChange={(e) => setQty(e.target.value)}
+                    onChange={(e) => handleQtyChange(e.target.value)}
                     className="min-w-0 flex-1 border-0 bg-transparent px-2 py-2.5 text-center text-base font-bold text-[#0f172a] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
                   <button

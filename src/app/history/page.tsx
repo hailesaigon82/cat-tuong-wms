@@ -15,6 +15,13 @@ const TYPE_COLOR: Record<string, string> = {
 const LIMIT = 20;
 type HistoryTab = "stock" | "adjustment";
 
+function formatQty(value: number) {
+  return new Intl.NumberFormat("vi-VN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 const TAB_LABEL: Record<HistoryTab, string> = {
   stock: "Xuất nhập",
   adjustment: "Điều chỉnh kho",
@@ -110,7 +117,7 @@ export default function HistoryPage() {
                   </div>
                   <div className="flex-shrink-0 text-right">
                     <div className={`text-sm font-semibold font-mono ${TYPE_COLOR[t.type]}`}>
-                      {t.type === "in" ? "+" : t.type === "out" ? "−" : "≈"}{t.qty}
+                      {t.type === "in" ? "+" : t.type === "out" ? "−" : "≈"}{formatQty(t.qty)}
                     </div>
                     <div className="text-xs text-gray-400 mt-0.5">{fmtCurrency(t.totalPrice)}</div>
                     <div className="mt-0.5">

@@ -26,8 +26,19 @@ function parseDecimalInput(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function isDecimalInputAllowed(value: string) {
+  return value === "" || /^\d+(\.\d{0,2})?$/.test(value);
+}
+
 function hasMaxTwoDecimals(value: number) {
   return Number.isFinite(value) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-9;
+}
+
+function formatQty(value: number) {
+  return new Intl.NumberFormat("vi-VN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 type ModalState =
@@ -166,6 +177,11 @@ export default function ItemsPage() {
     toggleItemTransactions(item);
   };
 
+  const updateDecimalField = (field: "qty" | "minQty", value: string) => {
+    if (!isDecimalInputAllowed(value)) return;
+    setForm((current) => ({ ...current, [field]: parseDecimalInput(value) }));
+  };
+
   return (
     <AppShell title="Hàng hóa">
       <div className="mb-4 flex flex-wrap items-center gap-2.5">
@@ -233,7 +249,7 @@ export default function ItemsPage() {
                         </td>
                         <td className="px-3.5 py-2.5 align-middle">
                           <span className={low ? "font-bold text-[#c0392b]" : "font-semibold text-[#1a1a2e]"}>
-                            {i.qty} {i.unit}{low ? " ⚠" : ""}
+                            {formatQty(i.qty)} {i.unit}{low ? " ⚠" : ""}
                           </span>
                         </td>
                         <td className="px-3.5 py-2.5 align-middle font-medium text-[#374151]">{fmtCurrency(i.unitPrice)}</td>
@@ -297,7 +313,7 @@ export default function ItemsPage() {
                                     </div>
                                     <div className="shrink-0 text-right">
                                       <div className={`font-mono text-sm font-semibold ${TYPE_COLOR[tx.type]}`}>
-                                        {tx.type === "in" ? "+" : tx.type === "out" ? "-" : "="}{tx.qty}
+                                        {tx.type === "in" ? "+" : tx.type === "out" ? "-" : "="}{formatQty(tx.qty)}
                                       </div>
                                       <div className="mt-0.5 text-xs text-[#8892a4]">{fmtCurrency(tx.totalPrice)}</div>
                                     </div>
@@ -386,7 +402,7 @@ export default function ItemsPage() {
                   min={0}
                   step={0.01}
                   value={form.qty}
-                  onChange={(e) => setForm({ ...form, qty: parseDecimalInput(e.target.value) })}
+                  onChange={(e) => updateDecimalField("qty", e.target.value)}
                   placeholder="0"
                 />
               </div>
@@ -419,7 +435,7 @@ export default function ItemsPage() {
                 min={0}
                 step={0.01}
                 value={form.minQty}
-                onChange={(e) => setForm({ ...form, minQty: parseDecimalInput(e.target.value) })}
+                onChange={(e) => updateDecimalField("minQty", e.target.value)}
                 placeholder="0"
               />
             </div>
