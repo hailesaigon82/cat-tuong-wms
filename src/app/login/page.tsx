@@ -6,6 +6,12 @@ import { useAppStore } from "@/store";
 import { Button, Alert, Input, FormGroup } from "@/components/ui";
 import { QRScanner } from "@/components/qr/QRScanner";
 
+function getDefaultRoute(roleCode: string) {
+  if (roleCode === "warehouse") return "/transactions";
+  if (roleCode === "admin" || roleCode === "manager") return "/items";
+  return "/dashboard";
+}
+
 export default function LoginPage() {
   const login       = useAppStore((s) => s.login);
   const isLoading   = useAppStore((s) => s.isLoading);
@@ -20,11 +26,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!currentUser) return;
-    if (currentUser.role.code === "warehouse") {
-      router.replace("/transactions");
-      return;
-    }
-    router.replace("/dashboard");
+    router.replace(getDefaultRoute(currentUser.role.code));
   }, [currentUser, router]);
 
   useEffect(() => {

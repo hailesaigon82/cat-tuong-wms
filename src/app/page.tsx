@@ -4,13 +4,19 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/store";
 
+function getDefaultRoute(roleCode: string) {
+  if (roleCode === "warehouse") return "/transactions";
+  if (roleCode === "admin" || roleCode === "manager") return "/items";
+  return "/dashboard";
+}
+
 export default function RootPage() {
   const currentUser = useAppStore((s) => s.currentUser);
   const router = useRouter();
 
   useEffect(() => {
     if (currentUser) {
-      router.replace(currentUser.role.code === "warehouse" ? "/transactions" : "/dashboard");
+      router.replace(getDefaultRoute(currentUser.role.code));
     } else {
       router.replace("/login");
     }
