@@ -96,6 +96,8 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   const [saving, setSaving]     = useState(false);
   const [showScanner, setShowScanner] = useState(autoOpenScanner);
   const [alert, setAlert]       = useState<{ msg: string; type: "error" | "success" } | null>(null);
+  const [lastReversibleTx, setLastReversibleTx] = useState<ApiTransaction | null>(null);
+  const [reversing, setReversing] = useState(false);
   const [recentTab, setRecentTab] = useState<RecentTab>("stock");
   const [stockRecentTxs, setStockRecentTxs] = useState<ApiTransaction[]>([]);
   const [adjustmentRecentTxs, setAdjustmentRecentTxs] = useState<ApiTransaction[]>([]);
@@ -264,7 +266,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
     if (!note.trim()) { showAlert({ msg: "Vui lòng nhập ghi chú", type: "error" }); return; }
     setSaving(true); setAlert(null);
     try {
-      const res = await api.post<{ newQty: number }>("/transactions", {
+      const res = await api.post<ApiTransaction & { newQty: number }>("/transactions", {
         itemId: selectedItem.id, type: txType, qty: qtyNum,
         ...(note.trim() ? { note: note.trim() } : {}),
       });
@@ -272,17 +274,41 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
         msg: `✅ ${CONFIG[txType].title} thành công! Tồn kho mới: ${res.newQty} ${selectedItem.unit}`,
         type: "success",
       });
+      setLastReversibleTx(res);
       const updatedItem = { ...selectedItem, qty: res.newQty };
-      setItemId("");
-      setSelectedItem(null);
-      setItemSearch("");
-      setItemDropdownOpen(false);
+      setSelectedItem(updatedItem);
+      setItemSearch(getItemLabel(updatedItem));
       setItems((current) => current.map((item) => item.id === updatedItem.id ? updatedItem : item));
+      await loadRecentTransactions(selectedItem.id);
       setQty("1"); setNote("");
     } catch (e) {
       showAlert({ msg: getTransactionErrorMessage(e, txType), type: "error" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const reverseLastTransaction = async () => {
+    if (!lastReversibleTx || !selectedItem) return;
+    setReversing(true);
+    try {
+      const res = await api.post<{ transaction: ApiTransaction; newQty: number }>(
+        `/transactions/${lastReversibleTx.id}/reverse`
+      );
+      const updatedItem = { ...selectedItem, qty: res.newQty };
+      setSelectedItem(updatedItem);
+      setItemSearch(getItemLabel(updatedItem));
+      setItems((current) => current.map((item) => item.id === updatedItem.id ? updatedItem : item));
+      await loadRecentTransactions(updatedItem.id);
+      setLastReversibleTx(null);
+      showAlert({
+        msg: `Đã thu hồi giao dịch #${lastReversibleTx.id}. Tồn kho mới: ${res.newQty} ${updatedItem.unit}`,
+        type: "success",
+      });
+    } catch (e) {
+      showAlert({ msg: e instanceof ApiError ? e.message : "Thu hồi giao dịch thất bại", type: "error" });
+    } finally {
+      setReversing(false);
     }
   };
 
@@ -304,6 +330,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
     setQty("1");
     setNote("");
     setAlert(null);
+    setLastReversibleTx(null);
     setStockRecentTxs([]);
     setAdjustmentRecentTxs([]);
     setRecentError("");
@@ -336,7 +363,21 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
           <div className="p-0">
             {alert && (
               <div ref={alertRef} tabIndex={-1} className="mb-4 outline-none">
-                <Alert type={alert.type} message={alert.msg} />
+                {alert.type === "success" && lastReversibleTx ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-green-200 bg-[#EAF3DE] px-3.5 py-2.5 text-sm text-[#3B6D11]">
+                    <span>{alert.msg}</span>
+                    <button
+                      type="button"
+                      onClick={reverseLastTransaction}
+                      disabled={reversing}
+                      className="font-bold text-[#A32D2D] underline decoration-2 underline-offset-2 transition hover:text-[#7d2222] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {reversing ? "Đang thu hồi..." : "Thu hồi"}
+                    </button>
+                  </div>
+                ) : (
+                  <Alert type={alert.type} message={alert.msg} />
+                )}
               </div>
             )}
 

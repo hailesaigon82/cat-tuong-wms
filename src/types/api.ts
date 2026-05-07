@@ -63,6 +63,7 @@ export interface ApiTransaction {
   unitPrice: number;
   totalPrice: number;
   note?: string;
+  reversedTransactionId?: number | null;
   createdAt: string;
   item: ApiItem;
   user: Pick<ApiUser, "id" | "name" | "username">;
