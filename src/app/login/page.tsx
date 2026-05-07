@@ -8,7 +8,7 @@ import { QRScanner } from "@/components/qr/QRScanner";
 
 function getDefaultRoute(roleCode: string) {
   if (roleCode === "warehouse") return "/transactions";
-  if (roleCode === "admin" || roleCode === "manager") return "/items";
+  if (roleCode === "admin" || roleCode === "manager" || roleCode === "office") return "/items";
   return "/dashboard";
 }
 
