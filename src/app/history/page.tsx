@@ -16,8 +16,8 @@ const LIMIT = 20;
 type HistoryTab = "stock" | "adjustment";
 
 const TAB_LABEL: Record<HistoryTab, string> = {
-  stock: "Xuất/Nhập transaction",
-  adjustment: "Điều chỉnh transaction",
+  stock: "Xuất / Nhập",
+  adjustment: "Điều chỉnh",
 };
 
 function round2(value: number) {
@@ -128,57 +128,56 @@ export default function HistoryPage() {
   };
 
   return (
-    <AppShell title="Lịch sử xuất/nhập/điều chỉnh kho">
+    <AppShell title="📋 Lịch sử xuất / nhập / điều chỉnh kho">
       <div className="w-full max-w-[980px]">
         {error && <div className="mb-4"><Alert type="error" message={error} /></div>}
 
-        <div className="overflow-hidden rounded-xl border border-[#e6e9f0] bg-white shadow-[0_14px_32px_-16px_rgba(15,23,42,0.18),0_4px_10px_-4px_rgba(15,23,42,0.06)]">
-          <div className="border-b border-[#e6e9f0] bg-white px-3.5 py-3 sm:px-4">
-            <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#f7f8fb] p-1 sm:max-w-[420px]">
+        <div className="overflow-hidden rounded-xl border border-[#e5e9f0] bg-white">
+          <div className="flex gap-1 border-b border-[#f0f2f6] bg-[#f8f9fc] px-3 py-3 sm:px-4">
               {(["stock", "adjustment"] as HistoryTab[]).map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => setActiveTab(tab)}
-                  className={`rounded-lg px-2.5 py-2 text-xs font-bold transition ${
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${
                     activeTab === tab
-                      ? "bg-white text-[#1d4ed8] shadow-sm"
-                      : "text-[#64748b] hover:bg-white/70 hover:text-[#0f172a]"
+                      ? "bg-white text-[#185FA5] shadow-[0_1px_4px_rgba(0,0,0,0.1)]"
+                      : "text-[#64748b] hover:text-[#1a1a2e]"
                   }`}
                 >
                   {TAB_LABEL[tab]}
                 </button>
               ))}
-            </div>
+          </div>
 
-            <div className="mt-3 grid gap-2 sm:grid-cols-[150px_150px_auto_auto] sm:items-center">
-              <div className="grid grid-cols-2 gap-2 sm:contents">
-                <input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  className="min-h-[36px] min-w-0 rounded-lg border border-[#d6dae4] bg-white px-2.5 text-xs text-[#0f172a] outline-none transition hover:border-[#b9c0cd] focus:border-[#2563eb] focus:shadow-[0_0_0_4px_rgba(37,99,235,0.15)] sm:min-h-[38px] sm:px-3 sm:text-sm"
-                  aria-label="Từ ngày"
-                />
-                <input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  className="min-h-[36px] min-w-0 rounded-lg border border-[#d6dae4] bg-white px-2.5 text-xs text-[#0f172a] outline-none transition hover:border-[#b9c0cd] focus:border-[#2563eb] focus:shadow-[0_0_0_4px_rgba(37,99,235,0.15)] sm:min-h-[38px] sm:px-3 sm:text-sm"
-                  aria-label="Đến ngày"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:contents">
-                <Button size="sm" variant="primary" className="justify-center" onClick={applyDateFilter} disabled={loading}>
+          <div className="flex flex-wrap items-end gap-2 border-b border-[#f0f2f6] bg-white px-3 py-3 sm:px-4">
+                <label className="min-w-0 flex-1 sm:flex-none">
+                  <span className="mb-1 block text-[11px] font-semibold text-[#64748b]">Từ</span>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="min-h-[34px] w-full min-w-0 rounded-lg border border-[#dde1ea] bg-white px-2.5 text-xs text-[#1a1a2e] outline-none transition focus:border-[#185FA5] sm:w-[150px]"
+                    aria-label="Từ ngày"
+                  />
+                </label>
+                <label className="min-w-0 flex-1 sm:flex-none">
+                  <span className="mb-1 block text-[11px] font-semibold text-[#64748b]">Đến</span>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="min-h-[34px] w-full min-w-0 rounded-lg border border-[#dde1ea] bg-white px-2.5 text-xs text-[#1a1a2e] outline-none transition focus:border-[#185FA5] sm:w-[150px]"
+                    aria-label="Đến ngày"
+                  />
+                </label>
+                <Button size="sm" variant="primary" className="min-h-[34px] justify-center px-3.5 text-xs" onClick={applyDateFilter} disabled={loading}>
                   Lọc
                 </Button>
-                <Button size="sm" className="justify-center" onClick={clearFilters} disabled={loading}>
+                <Button size="sm" className="min-h-[34px] justify-center px-3 text-xs" onClick={clearFilters} disabled={loading}>
                   Xóa
                 </Button>
-              </div>
-            </div>
-
-            <div className="mt-2 text-xs font-medium text-[#94a3b8]">
+            <div className="w-full text-xs font-medium text-[#94a3b8] sm:ml-auto sm:w-auto sm:self-center">
               Tổng {total} giao dịch · Trang {page}/{totalPages || 1}
             </div>
           </div>
@@ -189,8 +188,8 @@ export default function HistoryPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-[minmax(0,1fr)_64px_76px] gap-2 border-b border-[#eef0f5] bg-[#f7f8fb] px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide text-[#64748b] sm:grid-cols-[minmax(0,1fr)_96px_108px]">
-                <div>Transaction</div>
+              <div className="grid grid-cols-[minmax(0,1fr)_64px_76px] gap-2 border-b border-[#eef0f5] bg-[#f8f9fc] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.06em] text-[#94a3b8] sm:grid-cols-[minmax(0,1fr)_80px_90px] sm:px-4">
+                <div>Giao dịch</div>
                 <div className="text-right">{activeTab === "stock" ? "Qty" : "Before"}</div>
                 <div className="text-right">{activeTab === "stock" ? "Balance" : "After"}</div>
               </div>
@@ -199,16 +198,16 @@ export default function HistoryPage() {
                 {txs.map((tx) => {
                   const stockAfter = getStockAfter(tx);
                   return (
-                    <div key={tx.id} className="grid grid-cols-[minmax(0,1fr)_64px_76px] gap-2 px-3.5 py-3 sm:grid-cols-[minmax(0,1fr)_96px_108px]">
+                    <div key={tx.id} className="grid grid-cols-[minmax(0,1fr)_64px_76px] items-center gap-2 border-b border-[#f0f2f6] px-3 py-2.5 transition-colors last:border-b-0 hover:bg-[#f6f9ff] sm:grid-cols-[minmax(0,1fr)_80px_90px] sm:px-4">
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
+                        <div className="mb-1 flex flex-wrap items-center gap-1.5">
                           <Badge variant={tx.type}>{TYPE_LABEL[tx.type]}</Badge>
                           <Badge variant={tx.item?.category?.code ?? ""}>{tx.item?.code ?? "-"}</Badge>
-                          <span className="min-w-0 truncate text-sm font-semibold text-[#0f172a]">
+                          <span className="min-w-0 truncate text-[13px] font-semibold text-[#1a1a2e]">
                             {tx.item?.name ?? "Không rõ hàng hóa"}
                           </span>
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs font-medium leading-snug text-[#64748b]">
+                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] font-medium leading-snug text-[#94a3b8]">
                           <span>{new Date(tx.createdAt).toLocaleString("vi-VN")}</span>
                           <span aria-hidden="true">·</span>
                           <span>{tx.user?.name ?? "Không rõ người dùng"}</span>
@@ -220,12 +219,12 @@ export default function HistoryPage() {
                           )}
                         </div>
                       </div>
-                      <div className={`self-center text-right font-mono text-sm font-semibold ${TYPE_TEXT[tx.type]}`}>
+                      <div className={`text-right font-mono text-[13px] font-bold ${TYPE_TEXT[tx.type]}`}>
                         {activeTab === "stock"
                           ? `${tx.type === "in" ? "+" : "-"}${formatQty(tx.qty)}`
                           : formatQty(tx.stockBefore)}
                       </div>
-                      <div className="self-center text-right font-mono text-sm font-semibold text-[#0f172a]">
+                      <div className="text-right font-mono text-[13px] font-semibold text-[#1a1a2e]">
                         {formatQty(stockAfter)}
                       </div>
                     </div>
@@ -240,10 +239,10 @@ export default function HistoryPage() {
               </div>
 
               {totalPages > 1 && (
-                <div className="flex items-center justify-between gap-2 border-t border-[#eef0f5] bg-white px-3 py-3 sm:px-3.5">
+                <div className="flex items-center justify-between gap-2 border-t border-[#eef0f5] bg-white px-3 py-2.5 sm:px-4">
                   <Button
                     size="sm"
-                    className="min-w-[72px] justify-center px-2"
+                    className="min-w-[72px] justify-center rounded-md px-2 text-xs"
                     disabled={page <= 1 || loading}
                     onClick={() => loadPage(page - 1)}
                   >
@@ -285,7 +284,7 @@ export default function HistoryPage() {
 
                   <Button
                     size="sm"
-                    className="min-w-[72px] justify-center px-2"
+                    className="min-w-[72px] justify-center rounded-md px-2 text-xs"
                     disabled={page >= totalPages || loading}
                     onClick={() => loadPage(page + 1)}
                   >
