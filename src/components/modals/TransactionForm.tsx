@@ -403,14 +403,16 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                 </div>
                 <span
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border border-[#e6e9f0] bg-[#f7f8fb] py-1 pl-2 pr-2.5 text-xs font-semibold text-[#64748b]",
-                    selectedItem && selectedItem.qty > 0 && "border-[#b7ebd1] bg-[#ecfdf5] text-[#047857]"
+                    "inline-flex items-center gap-2 rounded-xl border border-[#d6dae4] bg-[#f7f8fb] px-3 py-2 text-sm font-bold text-[#475569] shadow-sm",
+                    selectedItem && selectedItem.qty > 0 && "border-[#86d9b8] bg-[#ecfdf5] text-[#047857] shadow-[0_6px_18px_-12px_rgba(5,150,105,0.75)]",
+                    selectedItem && selectedItem.qty <= 0 && "border-[#fecdd3] bg-[#fff1f3] text-[#be123c] shadow-[0_6px_18px_-12px_rgba(225,29,72,0.75)]"
                   )}
                 >
                   <span
                     className={cn(
-                      "h-1.5 w-1.5 rounded-full bg-[#94a3b8]",
-                      selectedItem && selectedItem.qty > 0 && "bg-[#059669]"
+                      "h-2 w-2 rounded-full bg-[#94a3b8]",
+                      selectedItem && selectedItem.qty > 0 && "bg-[#059669]",
+                      selectedItem && selectedItem.qty <= 0 && "bg-[#e11d48]"
                     )}
                     aria-hidden="true"
                   />
