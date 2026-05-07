@@ -23,14 +23,13 @@ export function HydrationProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Có token thì render ngay, refresh /auth/me ở nền.
-    setReady(true);
     if (currentUser) {
       hydrate();
+      setReady(true);
       return;
     }
 
-    hydrate();
+    hydrate().finally(() => setReady(true));
   }, [currentUser, hasHydrated, hydrate]);
 
   if (!ready) {

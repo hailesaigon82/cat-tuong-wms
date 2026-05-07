@@ -20,6 +20,7 @@ const ROLE_BADGE: Record<string, string> = {
 
 export default function UsersPage() {
   const currentUser = useAppStore((s) => s.currentUser);
+  const canManageUsers = useAppStore((s) => s.can("manage_users"));
   const isAdmin     = currentUser?.role.code === "admin";
 
   const [users, setUsers]         = useState<ApiUser[]>([]);
@@ -43,11 +44,15 @@ export default function UsersPage() {
   }, []);
 
   useEffect(() => {
+    if (!canManageUsers) {
+      setLoading(false);
+      return;
+    }
     loadUsers();
     api.get<typeof roles>("/users/roles").then((data) => {
       setRoles(isAdmin ? data : data.filter((r) => r.code !== "admin"));
     }).catch(() => {});
-  }, [loadUsers, isAdmin]);
+  }, [canManageUsers, loadUsers, isAdmin]);
 
   const openAdd = () => {
     setForm({ roleId: roles.find((r) => r.code === "warehouse")?.id ?? 4, name: "", username: "", password: "" });
@@ -87,6 +92,14 @@ export default function UsersPage() {
     try { await api.delete(`/users/${id}`); await loadUsers(); }
     catch (e) { alert(e instanceof ApiError ? e.message : "Xóa thất bại"); }
   };
+
+  if (!canManageUsers) {
+    return (
+      <AppShell title="Người dùng">
+        <Alert type="error" message="Bạn không có quyền quản lý người dùng" />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title="Người dùng">

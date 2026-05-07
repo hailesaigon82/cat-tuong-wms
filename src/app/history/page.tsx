@@ -27,6 +27,10 @@ const TAB_LABEL: Record<HistoryTab, string> = {
   adjustment: "Điều chỉnh kho",
 };
 
+function sortByNewest(a: ApiTransaction, b: ApiTransaction) {
+  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+}
+
 export default function HistoryPage() {
   const [txs, setTxs]       = useState<ApiTransaction[]>([]);
   const [total, setTotal]   = useState(0);
@@ -38,16 +42,33 @@ export default function HistoryPage() {
 
   const totalPages = Math.ceil(total / LIMIT);
 
+  const loadStockPage = async (p: number): Promise<TransactionListResponse> => {
+    const fetchLimit = LIMIT * p;
+    const [inRes, outRes] = await Promise.all([
+      api.get<TransactionListResponse>(`/transactions?limit=${fetchLimit}&page=1&type=in`),
+      api.get<TransactionListResponse>(`/transactions?limit=${fetchLimit}&page=1&type=out`),
+    ]);
+    const merged = [...inRes.data, ...outRes.data].sort(sortByNewest);
+    return {
+      data: merged.slice((p - 1) * LIMIT, p * LIMIT),
+      pagination: {
+        total: inRes.pagination.total + outRes.pagination.total,
+        page: p,
+        limit: LIMIT,
+        totalPages: Math.ceil((inRes.pagination.total + outRes.pagination.total) / LIMIT),
+      },
+    };
+  };
+
   const loadPage = useCallback(async (p: number) => {
     const seq = requestSeq.current + 1;
     requestSeq.current = seq;
     setLoading(true);
     setError("");
-    const typeQuery = activeTab === "stock" ? "types=in,out" : "type=adj";
     try {
-      const res = await api.get<TransactionListResponse>(
-        `/transactions?limit=${LIMIT}&page=${p}&${typeQuery}`
-      );
+      const res = activeTab === "stock"
+        ? await loadStockPage(p)
+        : await api.get<TransactionListResponse>(`/transactions?limit=${LIMIT}&page=${p}&type=adj`);
       if (requestSeq.current !== seq) return;
       setTxs(res.data);
       setTotal(res.pagination.total);

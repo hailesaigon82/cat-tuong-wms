@@ -36,6 +36,10 @@ const RECENT_TAB_LABEL: Record<RecentTab, string> = {
   adjustment: "Điều chỉnh transaction",
 };
 
+function sortByNewest(a: ApiTransaction, b: ApiTransaction) {
+  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+}
+
 function useDebounce<T>(value: T, delayMs: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -131,6 +135,9 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   const qtyNum = Number(qty);
   const canIn = can("tx_in");
   const canOut = can("tx_out");
+  const canAdj = can("tx_adj");
+  const canSubmitTx = txType === "in" ? canIn : txType === "out" ? canOut : canAdj;
+  const canUseForm = allowTypeSwitch ? canIn || canOut : canSubmitTx;
   const activeRecentTxs = recentTab === "stock" ? stockRecentTxs : adjustmentRecentTxs;
 
   const showAlert = useCallback((nextAlert: { msg: string; type: "error" | "success" }) => {
@@ -157,6 +164,10 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   }, [autoOpenScanner]);
 
   useEffect(() => {
+    if (!canUseForm) {
+      setItemsLoading(false);
+      return;
+    }
     let active = true;
     const query = selectedItem && debouncedItemSearch === getItemLabel(selectedItem)
       ? ""
@@ -183,7 +194,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
     return () => {
       active = false;
     };
-  }, [debouncedItemSearch, selectedItem]);
+  }, [canUseForm, debouncedItemSearch, selectedItem]);
 
   const loadRecentTransactions = useCallback(async (nextItemId: number) => {
     const seq = recentRequestSeq.current + 1;
@@ -191,16 +202,19 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
     setRecentLoading(true);
     setRecentError("");
     try {
-      const [stockRes, adjustmentRes] = await Promise.all([
+      const [inRes, outRes, adjustmentRes] = await Promise.all([
         api.get<TransactionListResponse>(
-          `/transactions?limit=3&page=1&itemId=${nextItemId}&types=in,out`
+          `/transactions?limit=3&page=1&itemId=${nextItemId}&type=in`
+        ),
+        api.get<TransactionListResponse>(
+          `/transactions?limit=3&page=1&itemId=${nextItemId}&type=out`
         ),
         api.get<TransactionListResponse>(
           `/transactions?limit=3&page=1&itemId=${nextItemId}&type=adj`
         ),
       ]);
       if (recentRequestSeq.current !== seq) return;
-      setStockRecentTxs(stockRes.data);
+      setStockRecentTxs([...inRes.data, ...outRes.data].sort(sortByNewest).slice(0, 3));
       setAdjustmentRecentTxs(adjustmentRes.data);
     } catch (e) {
       if (recentRequestSeq.current !== seq) return;
@@ -287,6 +301,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   };
 
   const submit = async () => {
+    if (!canSubmitTx) { showAlert({ msg: "Bạn không có quyền thực hiện thao tác này", type: "error" }); return; }
     if (!selectedItem) { showAlert({ msg: "Vui lòng chọn hàng hóa", type: "error" }); return; }
     if (!Number.isFinite(qtyNum)) { showAlert({ msg: "Vui lòng nhập số lượng hợp lệ", type: "error" }); return; }
     if ((txType === "in" || txType === "out") && qtyNum <= 0) { showAlert({ msg: "Vui lòng nhập số lượng lớn hơn 0", type: "error" }); return; }
@@ -372,6 +387,14 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
     setAdjustmentRecentTxs([]);
     setRecentError("");
   };
+
+  if (!canUseForm) {
+    return (
+      <AppShell title={cfg.title}>
+        <Alert type="error" message="Bạn không có quyền thực hiện thao tác này" />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title={cfg.title}>
