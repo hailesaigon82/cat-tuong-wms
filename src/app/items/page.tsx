@@ -58,7 +58,7 @@ const SORT_LABEL: Record<SortKey, string> = {
 };
 
 export default function ItemsPage() {
-  const can = useAppStore((s) => s.can);
+  const currentUser = useAppStore((s) => s.currentUser);
   const router = useRouter();
   const [items, setItems]           = useState<ApiItem[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
@@ -81,6 +81,13 @@ export default function ItemsPage() {
   const [form, setForm]             = useState({
     categoryId: 0, name: "", code: "", unit: "kg", qty: 0, unitPrice: 0, minQty: 5,
   });
+  const permissions = currentUser?.permissions ?? [];
+  const canCreateItems = permissions.includes("create_items");
+  const canEditItems = permissions.includes("edit_items");
+  const canDeleteItems = permissions.includes("delete_items");
+  const canTxIn = permissions.includes("tx_in");
+  const canTxOut = permissions.includes("tx_out");
+  const canTxAdj = permissions.includes("tx_adj");
 
   const loadItems = useCallback(async () => {
     try {
@@ -96,21 +103,21 @@ export default function ItemsPage() {
   useEffect(() => {
     loadItems();
     api.get<ApiCategory[]>("/items/categories?action=create").then(setCategories).catch(() => {});
-    if (can("edit_items")) {
+    if (canEditItems) {
       api.get<ApiCategory[]>("/items/categories?action=edit")
         .then((data) => setEditCategoryIds(new Set(data.map((category) => category.id))))
         .catch(() => setEditCategoryIds(new Set()));
     } else {
       setEditCategoryIds(new Set());
     }
-    if (can("delete_items")) {
+    if (canDeleteItems) {
       api.get<ApiCategory[]>("/items/categories?action=delete")
         .then((data) => setDeleteCategoryIds(new Set(data.map((category) => category.id))))
         .catch(() => setDeleteCategoryIds(new Set()));
     } else {
       setDeleteCategoryIds(new Set());
     }
-  }, [can, loadItems]);
+  }, [canDeleteItems, canEditItems, loadItems]);
 
   const filtered = items.filter(
     (i) => i.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -259,7 +266,7 @@ export default function ItemsPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        {can("create_items") && (
+        {canCreateItems && (
           <button
             type="button"
             onClick={openAdd}
@@ -294,8 +301,8 @@ export default function ItemsPage() {
                   const expanded = expandedItemId === i.id;
                   const recentTxs = recentTxsByItem[i.id] ?? [];
                   const recentError = recentErrorByItem[i.id];
-                  const canEditItem = can("edit_items") && editCategoryIds.has(i.categoryId);
-                  const canDeleteItem = can("delete_items") && deleteCategoryIds.has(i.categoryId);
+                  const canEditItem = canEditItems && editCategoryIds.has(i.categoryId);
+                  const canDeleteItem = canDeleteItems && deleteCategoryIds.has(i.categoryId);
                   return (
                     <Fragment key={i.id}>
                       <tr
@@ -330,7 +337,7 @@ export default function ItemsPage() {
                             >
                               QR
                             </button>
-                            {(can("tx_in") || can("tx_out")) && (
+                            {(canTxIn || canTxOut) && (
                               <button
                                 type="button"
                                 className="rounded-md border border-[#059669] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#047857] transition hover:bg-[#ecfdf5]"
@@ -339,7 +346,7 @@ export default function ItemsPage() {
                                 Xuất Nhập
                               </button>
                             )}
-                            {can("tx_adj") && (
+                            {canTxAdj && (
                               <button
                                 type="button"
                                 className="rounded-md border border-[#d97706] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#b45309] transition hover:bg-[#fffbeb]"

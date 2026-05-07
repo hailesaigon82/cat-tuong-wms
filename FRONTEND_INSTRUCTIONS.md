@@ -49,7 +49,7 @@ Roles:
 
 - `admin`: full access.
 - `manager`: management access, but not admin account management.
-- `office`: view-only access, limited to category H.
+- `office`: view-only access.
 - `warehouse`: inventory operations access.
 
 Category access is backend-driven through `role_category_access`. If the backend returns `allowedCategoryIds` in `/auth/login` or `/auth/me`, preserve that field in frontend types and auth state, but continue to treat backend responses as the source of truth for filtered item lists.
