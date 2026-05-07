@@ -29,6 +29,12 @@ const TYPE_TEXT: Record<TransactionType, string> = {
 };
 
 const NOTE_MAX_LENGTH = 200;
+type RecentTab = "stock" | "adjustment";
+
+const RECENT_TAB_LABEL: Record<RecentTab, string> = {
+  stock: "Xuất/Nhập transaction",
+  adjustment: "Điều chỉnh transaction",
+};
 
 function useDebounce<T>(value: T, delayMs: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -54,20 +60,20 @@ function getTransactionErrorMessage(error: unknown, txType: TransactionType) {
   return "Không thể điều chỉnh tồn kho. Vui lòng kiểm tra hàng hóa, số lượng mới và ghi chú điều chỉnh";
 }
 
-function getRecentStockText(tx: ApiTransaction) {
+function getStockAfter(tx: ApiTransaction) {
   if (tx.stockBefore === null || tx.stockBefore === undefined) {
-    return "Không rõ tồn kho";
+    return null;
   }
 
   if (tx.type === "in") {
-    return `Tồn sau: ${tx.stockBefore + tx.qty} ${tx.item.unit}`;
+    return tx.stockBefore + tx.qty;
   }
 
   if (tx.type === "out") {
-    return `Tồn sau: ${tx.stockBefore - tx.qty} ${tx.item.unit}`;
+    return tx.stockBefore - tx.qty;
   }
 
-  return `Tồn trước: ${tx.stockBefore} ${tx.item.unit}`;
+  return tx.qty;
 }
 
 interface TransactionFormProps {
@@ -90,7 +96,9 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   const [saving, setSaving]     = useState(false);
   const [showScanner, setShowScanner] = useState(autoOpenScanner);
   const [alert, setAlert]       = useState<{ msg: string; type: "error" | "success" } | null>(null);
-  const [recentTxs, setRecentTxs] = useState<ApiTransaction[]>([]);
+  const [recentTab, setRecentTab] = useState<RecentTab>("stock");
+  const [stockRecentTxs, setStockRecentTxs] = useState<ApiTransaction[]>([]);
+  const [adjustmentRecentTxs, setAdjustmentRecentTxs] = useState<ApiTransaction[]>([]);
   const [recentLoading, setRecentLoading] = useState(false);
   const [recentError, setRecentError] = useState("");
   const debouncedItemSearch = useDebounce(itemSearch, 300);
@@ -100,6 +108,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   const qtyNum = Number(qty);
   const canIn = can("tx_in");
   const canOut = can("tx_out");
+  const activeRecentTxs = recentTab === "stock" ? stockRecentTxs : adjustmentRecentTxs;
 
   const showAlert = useCallback((nextAlert: { msg: string; type: "error" | "success" }) => {
     setAlert(nextAlert);
@@ -157,12 +166,19 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
     setRecentLoading(true);
     setRecentError("");
     try {
-      const res = await api.get<TransactionListResponse>(
-        `/transactions?limit=3&page=1&itemId=${nextItemId}`
-      );
-      setRecentTxs(res.data);
+      const [stockRes, adjustmentRes] = await Promise.all([
+        api.get<TransactionListResponse>(
+          `/transactions?limit=3&page=1&itemId=${nextItemId}&types=in,out`
+        ),
+        api.get<TransactionListResponse>(
+          `/transactions?limit=3&page=1&itemId=${nextItemId}&type=adj`
+        ),
+      ]);
+      setStockRecentTxs(stockRes.data);
+      setAdjustmentRecentTxs(adjustmentRes.data);
     } catch (e) {
-      setRecentTxs([]);
+      setStockRecentTxs([]);
+      setAdjustmentRecentTxs([]);
       setRecentError(e instanceof ApiError ? e.message : "Không thể tải giao dịch gần nhất");
     } finally {
       setRecentLoading(false);
@@ -171,7 +187,8 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
 
   useEffect(() => {
     if (!selectedItem) {
-      setRecentTxs([]);
+      setStockRecentTxs([]);
+      setAdjustmentRecentTxs([]);
       setRecentError("");
       return;
     }
@@ -256,10 +273,11 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
         type: "success",
       });
       const updatedItem = { ...selectedItem, qty: res.newQty };
-      setSelectedItem(updatedItem);
-      setItemSearch(getItemLabel(updatedItem));
+      setItemId("");
+      setSelectedItem(null);
+      setItemSearch("");
+      setItemDropdownOpen(false);
       setItems((current) => current.map((item) => item.id === updatedItem.id ? updatedItem : item));
-      await loadRecentTransactions(selectedItem.id);
       setQty("1"); setNote("");
     } catch (e) {
       showAlert({ msg: getTransactionErrorMessage(e, txType), type: "error" });
@@ -286,7 +304,8 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
     setQty("1");
     setNote("");
     setAlert(null);
-    setRecentTxs([]);
+    setStockRecentTxs([]);
+    setAdjustmentRecentTxs([]);
     setRecentError("");
   };
 
@@ -573,7 +592,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
             </div>
 
             <div className="mt-[22px]">
-              <div className="mb-2.5 flex items-center justify-between gap-3">
+              <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 className="m-0 flex items-center gap-2 text-[13px] font-bold text-[#0f172a]">
                   Giao dịch gần nhất
                   <span className="rounded-full bg-[#eff4ff] px-2 py-0.5 text-[11px] font-bold text-[#1d4ed8]">3</span>
@@ -587,39 +606,73 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                 <div className="rounded-xl border border-dashed border-[#d6dae4] bg-[#f7f8fb] px-3 py-[22px] text-center text-[13px] font-medium text-[#64748b]">
                   Chọn hàng hóa để xem giao dịch gần nhất
                 </div>
-              ) : recentLoading ? (
-                <div className="rounded-xl border border-[#e6e9f0] bg-[#f7f8fb] px-3 py-[22px] text-center text-[13px] font-medium text-[#64748b]">
-                  Đang tải giao dịch...
-                </div>
-              ) : recentError ? (
-                <Alert type="error" message={recentError} />
-              ) : recentTxs.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[#d6dae4] bg-[#f7f8fb] px-3 py-[22px] text-center text-[13px] font-medium text-[#64748b]">
-                  Chưa có giao dịch nào cho hàng hóa này
-                </div>
               ) : (
-                <div className="divide-y divide-[#eef0f5] rounded-xl border border-[#e6e9f0] bg-white">
-                  {recentTxs.map((tx) => (
-                    <div key={tx.id} className="flex items-start justify-between gap-3 px-3.5 py-2.5">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Badge variant={tx.type}>{TYPE_LABEL[tx.type]}</Badge>
-                          <span className="text-xs font-medium text-[#94a3b8]">
-                            {new Date(tx.createdAt).toLocaleString("vi-VN")}
-                          </span>
-                        </div>
-                        <div className="mt-1 truncate text-xs font-medium text-[#64748b]">
-                          {tx.user?.name ?? "Không rõ người dùng"}{tx.note ? ` · ${tx.note}` : ""}
-                        </div>
+                <div>
+                  <div className="mb-2 grid grid-cols-2 gap-2 rounded-xl bg-[#f7f8fb] p-1">
+                    {(["stock", "adjustment"] as RecentTab[]).map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => setRecentTab(tab)}
+                        className={cn(
+                          "rounded-lg px-2.5 py-2 text-xs font-bold transition",
+                          recentTab === tab
+                            ? "bg-white text-[#1d4ed8] shadow-sm"
+                            : "text-[#64748b] hover:bg-white/70 hover:text-[#0f172a]"
+                        )}
+                      >
+                        {RECENT_TAB_LABEL[tab]}
+                      </button>
+                    ))}
+                  </div>
+
+                  {recentLoading ? (
+                    <div className="rounded-xl border border-[#e6e9f0] bg-[#f7f8fb] px-3 py-[22px] text-center text-[13px] font-medium text-[#64748b]">
+                      Đang tải giao dịch...
+                    </div>
+                  ) : recentError ? (
+                    <Alert type="error" message={recentError} />
+                  ) : activeRecentTxs.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-[#d6dae4] bg-[#f7f8fb] px-3 py-[22px] text-center text-[13px] font-medium text-[#64748b]">
+                      Chưa có giao dịch nào cho hàng hóa này
+                    </div>
+                  ) : (
+                    <div className="overflow-hidden rounded-xl border border-[#e6e9f0] bg-white">
+                      <div className="grid grid-cols-[minmax(0,1fr)_72px_86px] gap-2 border-b border-[#eef0f5] bg-[#f7f8fb] px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide text-[#64748b]">
+                        <div>Transaction</div>
+                        <div className="text-right">{recentTab === "stock" ? "Qty" : "Before"}</div>
+                        <div className="text-right">{recentTab === "stock" ? "Balance" : "After"}</div>
                       </div>
-                      <div className="flex-shrink-0 text-right">
-                        <div className={cn("font-mono text-sm font-semibold", TYPE_TEXT[tx.type])}>
-                          {tx.type === "in" ? "+" : tx.type === "out" ? "-" : "="}{tx.qty}
-                        </div>
-                        <div className="mt-0.5 text-xs font-semibold text-[#64748b]">{getRecentStockText(tx)}</div>
+                      <div className="divide-y divide-[#eef0f5]">
+                        {activeRecentTxs.map((tx) => {
+                          const stockAfter = getStockAfter(tx);
+                          return (
+                            <div key={tx.id} className="grid grid-cols-[minmax(0,1fr)_72px_86px] gap-2 px-3.5 py-2.5">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <Badge variant={tx.type}>{TYPE_LABEL[tx.type]}</Badge>
+                                  <span className="text-xs font-medium text-[#94a3b8]">
+                                    {new Date(tx.createdAt).toLocaleString("vi-VN")}
+                                  </span>
+                                </div>
+                                <div className="mt-1 truncate text-xs font-medium text-[#64748b]">
+                                  {tx.user?.name ?? "Không rõ người dùng"}{tx.note ? ` · ${tx.note}` : ""}
+                                </div>
+                              </div>
+                              <div className={cn("self-center text-right font-mono text-sm font-semibold", TYPE_TEXT[tx.type])}>
+                                {recentTab === "stock"
+                                  ? `${tx.type === "in" ? "+" : "-"}${tx.qty}`
+                                  : tx.stockBefore ?? "-"}
+                              </div>
+                              <div className="self-center text-right font-mono text-sm font-semibold text-[#0f172a]">
+                                {stockAfter ?? "-"}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
