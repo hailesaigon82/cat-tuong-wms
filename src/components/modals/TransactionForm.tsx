@@ -679,7 +679,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                     </div>
                   ) : (
                     <div className="overflow-hidden rounded-xl border border-[#e6e9f0] bg-white">
-                      <div className="hidden grid-cols-[minmax(0,1fr)_72px_86px] gap-2 border-b border-[#eef0f5] bg-[#f7f8fb] px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide text-[#64748b] sm:grid">
+                      <div className="grid grid-cols-[minmax(0,1fr)_48px_68px] gap-2 border-b border-[#eef0f5] bg-[#f7f8fb] px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide text-[#64748b] sm:grid-cols-[minmax(0,1fr)_72px_86px]">
                         <div>Transaction</div>
                         <div className="text-right">{recentTab === "stock" ? "Qty" : "Before"}</div>
                         <div className="text-right">{recentTab === "stock" ? "Balance" : "After"}</div>
@@ -688,7 +688,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                         {activeRecentTxs.map((tx) => {
                           const stockAfter = getStockAfter(tx);
                           return (
-                            <div key={tx.id} className="grid gap-2 px-3.5 py-3 sm:grid-cols-[minmax(0,1fr)_72px_86px] sm:py-2.5">
+                            <div key={tx.id} className="grid grid-cols-[minmax(0,1fr)_48px_68px] gap-2 px-3.5 py-2.5 sm:grid-cols-[minmax(0,1fr)_72px_86px]">
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   <Badge variant={tx.type}>{TYPE_LABEL[tx.type]}</Badge>
@@ -700,23 +700,13 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                                   {tx.user?.name ?? "Không rõ người dùng"}{tx.note ? ` · ${tx.note}` : ""}
                                 </div>
                               </div>
-                              <div className="grid grid-cols-2 gap-2 rounded-lg bg-[#f7f8fb] px-2.5 py-2 sm:contents">
-                                <div className={cn("flex items-center justify-between gap-2 text-left font-mono text-sm font-semibold sm:block sm:self-center sm:text-right", TYPE_TEXT[tx.type])}>
-                                  <span className="font-sans text-[11px] font-bold uppercase tracking-wide text-[#64748b] sm:hidden">
-                                    {recentTab === "stock" ? "Qty" : "Before"}
-                                  </span>
-                                  <span>
-                                    {recentTab === "stock"
-                                      ? `${tx.type === "in" ? "+" : "-"}${tx.qty}`
-                                      : tx.stockBefore ?? "-"}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between gap-2 text-left font-mono text-sm font-semibold text-[#0f172a] sm:block sm:self-center sm:text-right">
-                                  <span className="font-sans text-[11px] font-bold uppercase tracking-wide text-[#64748b] sm:hidden">
-                                    {recentTab === "stock" ? "Balance" : "After"}
-                                  </span>
-                                  <span>{stockAfter ?? "-"}</span>
-                                </div>
+                              <div className={cn("self-center text-right font-mono text-sm font-semibold", TYPE_TEXT[tx.type])}>
+                                {recentTab === "stock"
+                                  ? `${tx.type === "in" ? "+" : "-"}${tx.qty}`
+                                  : tx.stockBefore ?? "-"}
+                              </div>
+                              <div className="self-center text-right font-mono text-sm font-semibold text-[#0f172a]">
+                                {stockAfter ?? "-"}
                               </div>
                             </div>
                           );
