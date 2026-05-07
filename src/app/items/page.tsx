@@ -1,6 +1,7 @@
 // src/app/items/page.tsx
 "use client";
 import { Fragment, useState, useEffect, useCallback, type KeyboardEvent } from "react";
+import { useRouter } from "next/navigation";
 import { useAppStore } from "@/store";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button, Badge, Modal, Alert } from "@/components/ui";
@@ -58,6 +59,7 @@ const SORT_LABEL: Record<SortKey, string> = {
 
 export default function ItemsPage() {
   const can = useAppStore((s) => s.can);
+  const router = useRouter();
   const [items, setItems]           = useState<ApiItem[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [search, setSearch]         = useState("");
@@ -209,6 +211,10 @@ export default function ItemsPage() {
     }));
   };
 
+  const openTransactionForItem = (path: string, itemCode: string) => {
+    router.push(`${path}?item=${encodeURIComponent(itemCode)}`);
+  };
+
   const renderSortableHeader = (key: SortKey) => {
     const active = sort.key === key;
     return (
@@ -255,7 +261,7 @@ export default function ItemsPage() {
       ) : (
         <div className="overflow-hidden rounded-xl border border-[#e5e9f0] bg-white">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] border-collapse text-[13px]">
+            <table className="w-full min-w-[920px] border-collapse text-[13px]">
               <thead>
                 <tr>
                   <th aria-sort={sort.key === "code" ? (sort.direction === "asc" ? "ascending" : "descending") : "none"} className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">{renderSortableHeader("code")}</th>
@@ -298,7 +304,7 @@ export default function ItemsPage() {
                         <td className="px-3.5 py-2.5 align-middle font-medium text-[#374151]">{fmtCurrency(i.unitPrice)}</td>
                         <td className="px-3.5 py-2.5 align-middle font-bold text-[#1a1a2e]">{fmtCurrency(i.qty * i.unitPrice)}</td>
                         <td className="px-3.5 py-2.5 align-middle">
-                          <div className="flex gap-1 whitespace-nowrap">
+                          <div className="flex flex-wrap gap-1 whitespace-nowrap">
                             <button
                               type="button"
                               className="rounded-md border border-[#dde1ea] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#555] transition hover:bg-[#f0f2f6]"
@@ -306,6 +312,24 @@ export default function ItemsPage() {
                             >
                               QR
                             </button>
+                            {(can("tx_in") || can("tx_out")) && (
+                              <button
+                                type="button"
+                                className="rounded-md border border-[#059669] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#047857] transition hover:bg-[#ecfdf5]"
+                                onClick={(e) => { e.stopPropagation(); openTransactionForItem("/transactions", i.code); }}
+                              >
+                                Xuất Nhập
+                              </button>
+                            )}
+                            {can("tx_adj") && (
+                              <button
+                                type="button"
+                                className="rounded-md border border-[#d97706] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#b45309] transition hover:bg-[#fffbeb]"
+                                onClick={(e) => { e.stopPropagation(); openTransactionForItem("/transactions/adj", i.code); }}
+                              >
+                                Điều chỉnh
+                              </button>
+                            )}
                             {can("edit_items") && (
                               <button
                                 type="button"

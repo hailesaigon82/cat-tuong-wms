@@ -104,9 +104,10 @@ interface TransactionFormProps {
   type: TransactionType;
   allowTypeSwitch?: boolean;
   autoOpenScanner?: boolean;
+  initialItemCode?: string;
 }
 
-export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner = false }: TransactionFormProps) {
+export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner = false, initialItemCode }: TransactionFormProps) {
   const can = useAppStore((s) => s.can);
   const [items, setItems]       = useState<ApiItem[]>([]);
   const [itemId, setItemId]     = useState<number | "">("");
@@ -130,8 +131,10 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   const debouncedItemSearch = useDebounce(itemSearch, 300);
   const alertRef = useRef<HTMLDivElement | null>(null);
   const recentRequestSeq = useRef(0);
+  const appliedInitialItemCodeRef = useRef("");
 
   const cfg = allowTypeSwitch ? { title: "Xuất Nhập", qtyLabel: "Số lượng" } : CONFIG[txType];
+  const normalizedInitialItemCode = initialItemCode?.replace(/^ITEM-/i, "").trim().toUpperCase() ?? "";
   const qtyNum = Number(qty);
   const canIn = can("tx_in");
   const canOut = can("tx_out");
@@ -162,6 +165,42 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
       setShowScanner(true);
     }
   }, [autoOpenScanner]);
+
+  useEffect(() => {
+    if (!canUseForm || !normalizedInitialItemCode) return;
+    if (appliedInitialItemCodeRef.current === normalizedInitialItemCode) return;
+
+    let active = true;
+    appliedInitialItemCodeRef.current = normalizedInitialItemCode;
+    setAlert(null);
+    setItemSearch(normalizedInitialItemCode);
+    setItemDropdownOpen(false);
+
+    api.get<ApiItem[]>(`/items?code=${encodeURIComponent(normalizedInitialItemCode)}`)
+      .then((matchedItems) => {
+        if (!active) return;
+        const matchedItem = matchedItems[0];
+        if (!matchedItem) {
+          showAlert({ msg: "Không tìm thấy hàng hóa hoặc bạn không có quyền truy cập", type: "error" });
+          return;
+        }
+        setItems((current) => {
+          if (current.some((item) => item.id === matchedItem.id)) return current;
+          return [matchedItem, ...current].sort((a, b) => a.code.localeCompare(b.code));
+        });
+        setItemId(matchedItem.id);
+        setSelectedItem(matchedItem);
+        setItemSearch(getItemLabel(matchedItem));
+      })
+      .catch((e) => {
+        if (!active) return;
+        showAlert({ msg: e instanceof ApiError ? e.message : "Không tìm thấy hàng hóa hoặc bạn không có quyền truy cập", type: "error" });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [canUseForm, normalizedInitialItemCode, showAlert]);
 
   useEffect(() => {
     if (!canUseForm) {
