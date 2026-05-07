@@ -76,6 +76,14 @@ function getStockAfter(tx: ApiTransaction) {
   return tx.qty;
 }
 
+function hasMaxTwoDecimals(value: number) {
+  return Number.isFinite(value) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-9;
+}
+
+function round2(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 interface TransactionFormProps {
   type: TransactionType;
   allowTypeSwitch?: boolean;
@@ -263,8 +271,10 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
 
   const submit = async () => {
     if (!selectedItem) { showAlert({ msg: "Vui lòng chọn hàng hóa", type: "error" }); return; }
-    if (!Number.isFinite(qtyNum) || qtyNum <= 0) { showAlert({ msg: "Vui lòng nhập số lượng lớn hơn 0", type: "error" }); return; }
-    if (!Number.isInteger(qtyNum)) { showAlert({ msg: "Số lượng phải là số nguyên", type: "error" }); return; }
+    if (!Number.isFinite(qtyNum)) { showAlert({ msg: "Vui lòng nhập số lượng hợp lệ", type: "error" }); return; }
+    if ((txType === "in" || txType === "out") && qtyNum <= 0) { showAlert({ msg: "Vui lòng nhập số lượng lớn hơn 0", type: "error" }); return; }
+    if (txType === "adj" && qtyNum < 0) { showAlert({ msg: "Số tồn mới không được nhỏ hơn 0", type: "error" }); return; }
+    if (!hasMaxTwoDecimals(qtyNum)) { showAlert({ msg: "Số lượng chỉ được nhập tối đa 2 chữ số thập phân", type: "error" }); return; }
     if (txType === "out" && qtyNum > selectedItem.qty) {
       showAlert({
         msg: `Số lượng xuất (${qtyNum} ${selectedItem.unit}) vượt quá tồn kho hiện tại (${selectedItem.qty} ${selectedItem.unit})`,
@@ -322,7 +332,8 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   };
 
   const updateQty = (nextQty: number) => {
-    setQty(String(Math.max(1, nextQty)));
+    const minQty = txType === "adj" ? 0 : 0.01;
+    setQty(String(Math.max(minQty, round2(nextQty))));
   };
 
   const selectTxType = (nextType: TransactionType) => {
@@ -586,8 +597,8 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                   <input
                     id="transaction-qty"
                     type="number"
-                    min={1}
-                    step={1}
+                    min={txType === "adj" ? 0 : 0.01}
+                    step={0.01}
                     inputMode="numeric"
                     value={qty}
                     onChange={(e) => setQty(e.target.value)}

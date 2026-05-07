@@ -30,7 +30,11 @@ export const useAppStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           // skipRefresh: true — nếu sai pass trả 401, không cố refresh token
-          const res = await api.post<LoginResponse>("/auth/login", { username, password }, { skipRefresh: true });
+          const res = await api.post<LoginResponse>(
+            "/auth/login",
+            { username: username.trim().toLowerCase(), password },
+            { skipRefresh: true }
+          );
           tokenStorage.set(res.accessToken, res.refreshToken);
           set({ currentUser: res.user, isLoading: false, error: null });
           return true;

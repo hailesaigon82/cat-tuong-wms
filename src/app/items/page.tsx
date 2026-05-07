@@ -21,6 +21,15 @@ function getCategoryLabel(category: ApiCategory) {
   return `${category.code} - ${category.name}`;
 }
 
+function parseDecimalInput(value: string) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function hasMaxTwoDecimals(value: number) {
+  return Number.isFinite(value) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-9;
+}
+
 type ModalState =
   | { type: "none" }
   | { type: "add" }
@@ -86,6 +95,8 @@ export default function ItemsPage() {
       return;
     }
     if ((modal.type === "add" || modal.type === "edit") && !form.categoryId) { setFormError("Vui lòng chọn danh mục"); return; }
+    if (modal.type === "add" && !hasMaxTwoDecimals(form.qty)) { setFormError("Số tồn đầu tiên chỉ được nhập tối đa 2 chữ số thập phân"); return; }
+    if (!hasMaxTwoDecimals(form.minQty)) { setFormError("Ngưỡng cảnh báo chỉ được nhập tối đa 2 chữ số thập phân"); return; }
     if (modal.type === "add" || modal.type === "edit") {
       const selectedCategory = categories.find((category) => category.id === form.categoryId);
       const normalizedCode = form.code.trim().toUpperCase();
@@ -373,8 +384,9 @@ export default function ItemsPage() {
                   className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
                   type="number"
                   min={0}
+                  step={0.01}
                   value={form.qty}
-                  onChange={(e) => setForm({ ...form, qty: parseInt(e.target.value) || 0 })}
+                  onChange={(e) => setForm({ ...form, qty: parseDecimalInput(e.target.value) })}
                   placeholder="0"
                 />
               </div>
@@ -393,6 +405,7 @@ export default function ItemsPage() {
                 className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
                 type="number"
                 min={0}
+                step={1}
                 value={form.unitPrice}
                 onChange={(e) => setForm({ ...form, unitPrice: parseInt(e.target.value) || 0 })}
                 placeholder="0"
@@ -404,8 +417,9 @@ export default function ItemsPage() {
                 className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
                 type="number"
                 min={0}
+                step={0.01}
                 value={form.minQty}
-                onChange={(e) => setForm({ ...form, minQty: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setForm({ ...form, minQty: parseDecimalInput(e.target.value) })}
                 placeholder="0"
               />
             </div>

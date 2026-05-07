@@ -40,7 +40,7 @@ export default function LoginPage() {
   const handleQRScan = (data: string) => {
     // Hỗ trợ cả "USER-admin" lẫn "admin"
     const scanned = data.startsWith("USER-") ? data.replace("USER-", "") : data;
-    setUsername(scanned);
+    setUsername(scanned.trim().toLowerCase());
     setShowScanner(false);
     setTimeout(() => document.getElementById("password")?.focus(), 100);
   };
@@ -89,7 +89,7 @@ export default function LoginPage() {
           <FormGroup label="Tên đăng nhập">
             <Input
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => setUsername(e.target.value.toLowerCase())}
               placeholder="Nhập tên đăng nhập"
               disabled={isLoading}
             />

@@ -67,11 +67,11 @@ export default function UsersPage() {
     setSaving(true); setFormError("");
     try {
       if (modal.type === "edit") {
-        const data: any = { roleId: form.roleId, name: form.name, username: form.username };
+        const data: any = { roleId: form.roleId, name: form.name, username: form.username.trim().toLowerCase() };
         if (form.password.trim()) data.password = form.password;
         await api.put(`/users/${modal.user.id}`, data);
       } else {
-        await api.post("/users", form);
+        await api.post("/users", { ...form, username: form.username.trim().toLowerCase() });
       }
       await loadUsers();
       setModal({ type: "none" });
@@ -154,7 +154,7 @@ export default function UsersPage() {
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </FormGroup>
             <FormGroup label="Tên đăng nhập" required>
-              <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+              <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value.toLowerCase() })} />
             </FormGroup>
             <FormGroup label={modal.type === "edit" ? "Mật khẩu mới (để trống nếu không đổi)" : "Mật khẩu"} required={modal.type === "add"}>
               <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
