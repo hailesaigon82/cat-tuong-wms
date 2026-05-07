@@ -62,6 +62,7 @@ export default function ItemsPage() {
   const router = useRouter();
   const [items, setItems]           = useState<ApiItem[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [editCategoryIds, setEditCategoryIds] = useState<Set<number>>(new Set());
   const [deleteCategoryIds, setDeleteCategoryIds] = useState<Set<number>>(new Set());
   const [search, setSearch]         = useState("");
   const [loading, setLoading]       = useState(true);
@@ -95,6 +96,13 @@ export default function ItemsPage() {
   useEffect(() => {
     loadItems();
     api.get<ApiCategory[]>("/items/categories?action=create").then(setCategories).catch(() => {});
+    if (can("edit_items")) {
+      api.get<ApiCategory[]>("/items/categories?action=edit")
+        .then((data) => setEditCategoryIds(new Set(data.map((category) => category.id))))
+        .catch(() => setEditCategoryIds(new Set()));
+    } else {
+      setEditCategoryIds(new Set());
+    }
     if (can("delete_items")) {
       api.get<ApiCategory[]>("/items/categories?action=delete")
         .then((data) => setDeleteCategoryIds(new Set(data.map((category) => category.id))))
@@ -286,6 +294,7 @@ export default function ItemsPage() {
                   const expanded = expandedItemId === i.id;
                   const recentTxs = recentTxsByItem[i.id] ?? [];
                   const recentError = recentErrorByItem[i.id];
+                  const canEditItem = can("edit_items") && editCategoryIds.has(i.categoryId);
                   const canDeleteItem = can("delete_items") && deleteCategoryIds.has(i.categoryId);
                   return (
                     <Fragment key={i.id}>
@@ -339,7 +348,7 @@ export default function ItemsPage() {
                                 Điều chỉnh
                               </button>
                             )}
-                            {can("edit_items") && (
+                            {canEditItem && (
                               <button
                                 type="button"
                                 className="rounded-md border border-[#185FA5] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#185FA5] transition hover:bg-[#ebf3fb]"
