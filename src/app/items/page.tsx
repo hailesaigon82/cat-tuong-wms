@@ -73,7 +73,7 @@ export default function ItemsPage() {
   const [recentLoadingId, setRecentLoadingId] = useState<number | null>(null);
   const [recentErrorByItem, setRecentErrorByItem] = useState<Record<number, string>>({});
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
-    key: "code",
+    key: "qty",
     direction: "asc",
   });
   const [form, setForm]             = useState({
