@@ -66,11 +66,11 @@ function getStockAfter(tx: ApiTransaction) {
   }
 
   if (tx.type === "in") {
-    return tx.stockBefore + tx.qty;
+    return round2(tx.stockBefore + tx.qty);
   }
 
   if (tx.type === "out") {
-    return tx.stockBefore - tx.qty;
+    return round2(tx.stockBefore - tx.qty);
   }
 
   return tx.qty;
@@ -82,6 +82,14 @@ function hasMaxTwoDecimals(value: number) {
 
 function round2(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function formatQty(value: number | null | undefined) {
+  if (value === null || value === undefined) return "-";
+  return new Intl.NumberFormat("vi-VN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(round2(value));
 }
 
 interface TransactionFormProps {
@@ -277,7 +285,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
     if (!hasMaxTwoDecimals(qtyNum)) { showAlert({ msg: "Số lượng chỉ được nhập tối đa 2 chữ số thập phân", type: "error" }); return; }
     if (txType === "out" && qtyNum > selectedItem.qty) {
       showAlert({
-        msg: `Số lượng xuất (${qtyNum} ${selectedItem.unit}) vượt quá tồn kho hiện tại (${selectedItem.qty} ${selectedItem.unit})`,
+        msg: `Số lượng xuất (${formatQty(qtyNum)} ${selectedItem.unit}) vượt quá tồn kho hiện tại (${formatQty(selectedItem.qty)} ${selectedItem.unit})`,
         type: "error",
       });
       return;
@@ -290,7 +298,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
         ...(note.trim() ? { note: note.trim() } : {}),
       });
       showAlert({
-        msg: `✅ ${CONFIG[txType].title} thành công! Tồn kho mới: ${res.newQty} ${selectedItem.unit}`,
+        msg: `✅ ${CONFIG[txType].title} thành công! Tồn kho mới: ${formatQty(res.newQty)} ${selectedItem.unit}`,
         type: "success",
       });
       setLastReversibleTx(res);
@@ -321,7 +329,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
       await loadRecentTransactions(updatedItem.id);
       setLastReversibleTx(null);
       showAlert({
-        msg: `Đã thu hồi giao dịch #${lastReversibleTx.id}. Tồn kho mới: ${res.newQty} ${updatedItem.unit}`,
+        msg: `Đã thu hồi giao dịch #${lastReversibleTx.id}. Tồn kho mới: ${formatQty(res.newQty)} ${updatedItem.unit}`,
         type: "success",
       });
     } catch (e) {
@@ -515,7 +523,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                   <span>
                     {selectedItem
                       ? selectedItem.qty > 0
-                        ? `Còn ${selectedItem.qty} ${selectedItem.unit} trong kho`
+                        ? `Còn ${formatQty(selectedItem.qty)} ${selectedItem.unit} trong kho`
                         : "Hết hàng"
                       : "Chọn hàng hóa để xem tồn kho"}
                   </span>
@@ -722,11 +730,11 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                               </div>
                               <div className={cn("self-center text-right font-mono text-sm font-semibold", TYPE_TEXT[tx.type])}>
                                 {recentTab === "stock"
-                                  ? `${tx.type === "in" ? "+" : "-"}${tx.qty}`
-                                  : tx.stockBefore ?? "-"}
+                                  ? `${tx.type === "in" ? "+" : "-"}${formatQty(tx.qty)}`
+                                  : formatQty(tx.stockBefore)}
                               </div>
                               <div className="self-center text-right font-mono text-sm font-semibold text-[#0f172a]">
-                                {stockAfter ?? "-"}
+                                {formatQty(stockAfter)}
                               </div>
                             </div>
                           );
