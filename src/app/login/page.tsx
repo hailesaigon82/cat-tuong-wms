@@ -21,7 +21,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (!currentUser) return;
     if (currentUser.role.code === "warehouse") {
-      router.replace("/transactions?scan=1");
+      router.replace("/transactions");
       return;
     }
     router.replace("/dashboard");
@@ -98,6 +98,8 @@ export default function LoginPage() {
             <Input
               id="password"
               type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Nhập mật khẩu"

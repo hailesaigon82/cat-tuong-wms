@@ -10,7 +10,7 @@ export default function RootPage() {
 
   useEffect(() => {
     if (currentUser) {
-      router.replace(currentUser.role.code === "warehouse" ? "/transactions?scan=1" : "/dashboard");
+      router.replace(currentUser.role.code === "warehouse" ? "/transactions" : "/dashboard");
     } else {
       router.replace("/login");
     }
