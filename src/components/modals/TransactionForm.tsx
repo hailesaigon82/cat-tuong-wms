@@ -5,7 +5,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Alert, Badge } from "@/components/ui";
 import { QRScanner } from "@/components/qr/QRScanner";
 import { api, ApiError } from "@/lib/api";
-import { cn, fmtCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, Minus, Package, Plus, QrCode } from "lucide-react";
 import type { ApiItem, ApiTransaction, TransactionListResponse, TransactionType } from "@/types/api";
@@ -52,6 +52,22 @@ function getTransactionErrorMessage(error: unknown, txType: TransactionType) {
   if (txType === "out") return "Không thể xuất kho. Vui lòng kiểm tra hàng hóa, số lượng xuất và tồn kho hiện tại";
   if (txType === "in") return "Không thể nhập kho. Vui lòng kiểm tra hàng hóa và số lượng nhập";
   return "Không thể điều chỉnh tồn kho. Vui lòng kiểm tra hàng hóa, số lượng mới và ghi chú điều chỉnh";
+}
+
+function getRecentStockText(tx: ApiTransaction) {
+  if (tx.stockBefore === null || tx.stockBefore === undefined) {
+    return "Không rõ tồn kho";
+  }
+
+  if (tx.type === "in") {
+    return `Tồn sau: ${tx.stockBefore + tx.qty} ${tx.item.unit}`;
+  }
+
+  if (tx.type === "out") {
+    return `Tồn sau: ${tx.stockBefore - tx.qty} ${tx.item.unit}`;
+  }
+
+  return `Tồn trước: ${tx.stockBefore} ${tx.item.unit}`;
 }
 
 interface TransactionFormProps {
@@ -600,7 +616,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                         <div className={cn("font-mono text-sm font-semibold", TYPE_TEXT[tx.type])}>
                           {tx.type === "in" ? "+" : tx.type === "out" ? "-" : "="}{tx.qty}
                         </div>
-                        <div className="mt-0.5 text-xs font-medium text-[#94a3b8]">{fmtCurrency(tx.totalPrice)}</div>
+                        <div className="mt-0.5 text-xs font-semibold text-[#64748b]">{getRecentStockText(tx)}</div>
                       </div>
                     </div>
                   ))}

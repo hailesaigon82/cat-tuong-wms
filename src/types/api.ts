@@ -59,6 +59,7 @@ export interface ApiTransaction {
   userId: number;
   type: TransactionType;
   qty: number;
+  stockBefore: number | null;
   unitPrice: number;
   totalPrice: number;
   note?: string;
