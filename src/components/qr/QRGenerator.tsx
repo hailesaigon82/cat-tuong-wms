@@ -12,12 +12,18 @@ export function QRGenerator({ text, size = 200 }: QRGeneratorProps) {
 
   useEffect(() => {
     if (!ref.current) return;
-    ref.current.innerHTML = "";
+    const node = ref.current;
+    let active = true;
+    node.innerHTML = "";
     import("qrcode").then((QRCode) => {
       QRCode.toCanvas(text, { width: size, margin: 2 }).then((canvas: HTMLCanvasElement) => {
-        if (ref.current) ref.current.appendChild(canvas);
+        if (active) node.appendChild(canvas);
       });
     });
+    return () => {
+      active = false;
+      node.innerHTML = "";
+    };
   }, [text, size]);
 
   return <div ref={ref} />;

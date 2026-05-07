@@ -1,9 +1,9 @@
 // src/app/items/page.tsx
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { Fragment, useState, useEffect, useCallback, type KeyboardEvent } from "react";
 import { useAppStore } from "@/store";
 import { AppShell } from "@/components/layout/AppShell";
-import { Button, Badge, Card, Modal, FormGroup, Input, Select, Alert } from "@/components/ui";
+import { Button, Badge, Modal, Alert } from "@/components/ui";
 import { QRGenerator } from "@/components/qr/QRGenerator";
 import { api, ApiError } from "@/lib/api";
 import { fmtCurrency } from "@/lib/utils";
@@ -16,6 +16,10 @@ const TYPE_COLOR: Record<string, string> = {
   adj: "text-amber-600",
 };
 const ITEM_CODE_PATTERN = /^[A-Z][0-9]{3}$/;
+
+function getCategoryLabel(category: ApiCategory) {
+  return `${category.code} - ${category.name}`;
+}
 
 type ModalState =
   | { type: "none" }
@@ -146,13 +150,32 @@ export default function ItemsPage() {
     }
   };
 
+  const handleItemRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, item: ApiItem) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggleItemTransactions(item);
+  };
+
   return (
     <AppShell title="Hàng hóa">
-      <div className="flex gap-2 mb-4">
-        <Input className="flex-1" placeholder="Tìm theo tên hoặc mã hàng..."
-          value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="mb-4 flex flex-wrap items-center gap-2.5">
+        <div className="relative min-w-[200px] flex-1">
+          <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-[#aab]">🔍</span>
+          <input
+            className="w-full rounded-lg border border-[#dde1ea] bg-white py-2 pl-8 pr-3 text-[13px] text-[#1a1a2e] outline-none transition-colors placeholder:text-[#aab] focus:border-[#185FA5]"
+            placeholder="Tìm theo tên hoặc mã hàng..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
         {can("create_items") && (
-          <Button variant="primary" size="sm" onClick={openAdd}>+ Thêm</Button>
+          <button
+            type="button"
+            onClick={openAdd}
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border-0 bg-[#185FA5] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#0e4a86]"
+          >
+            ＋ Thêm hàng
+          </button>
         )}
       </div>
 
@@ -161,97 +184,128 @@ export default function ItemsPage() {
       {loading ? (
         <div className="text-center text-gray-400 py-8 text-sm">Đang tải...</div>
       ) : (
-        <div className="flex flex-col gap-1">
-          {filtered.map((i) => {
-            const low = i.qty < i.minQty;
-            const expanded = expandedItemId === i.id;
-            const recentTxs = recentTxsByItem[i.id] ?? [];
-            const recentError = recentErrorByItem[i.id];
-            return (
-              <Card key={i.id} className="!mb-0">
-                <div
-                  className="cursor-pointer px-2.5 py-1.5 transition-colors hover:bg-gray-50"
-                  onClick={() => toggleItemTransactions(i)}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Badge variant={i.category.code}>{i.code}</Badge>
-                      <span className="text-sm font-medium text-gray-800 truncate">{i.name}</span>
-                      <span className="text-xs text-gray-400">{expanded ? "Thu gọn" : "Chi tiết"}</span>
-                    </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                      {/* Nút QR */}
-                      <Button size="sm" onClick={(e) => { e.stopPropagation(); setModal({ type: "qr", item: i }); }}>
-                        QR
-                      </Button>
-                      {can("edit_items") && (
-                        <Button size="sm" onClick={(e) => { e.stopPropagation(); openEdit(i); }}>Sửa</Button>
-                      )}
-                      {can("delete_items") && (
-                        <Button size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); handleDelete(i.id, i.code); }}>Xóa</Button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-0.5 grid grid-cols-3 gap-2 text-xs leading-tight text-gray-500">
-                    <div>
-                      <div className="text-gray-400">Tồn kho</div>
-                      <div className={`font-semibold ${low ? "text-[#A32D2D]" : "text-gray-800"}`}>
-                        {i.qty} {i.unit}{low ? " ⚠️" : ""}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-gray-400">Đơn giá</div>
-                      <div className="font-semibold text-gray-800">{fmtCurrency(i.unitPrice)}</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-400">Thành tiền</div>
-                      <div className="font-semibold text-gray-800">{fmtCurrency(i.qty * i.unitPrice)}</div>
-                    </div>
-                  </div>
-                </div>
-                {expanded && (
-                  <div className="border-t border-gray-100 bg-gray-50 px-3 py-2.5">
-                    <div className="mb-2 text-xs font-semibold text-gray-600">5 giao dịch gần nhất</div>
-                    {recentLoadingId === i.id ? (
-                      <div className="text-sm text-gray-400">Đang tải giao dịch...</div>
-                    ) : recentError ? (
-                      <Alert type="error" message={recentError} />
-                    ) : recentTxs.length === 0 ? (
-                      <div className="rounded-md border border-dashed border-gray-200 bg-white px-3 py-3 text-center text-sm text-gray-400">
-                        Chưa có giao dịch nào cho hàng hóa này
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-gray-100 rounded-md border border-gray-200 bg-white">
-                        {recentTxs.map((tx) => (
-                          <div key={tx.id} className="flex items-start justify-between gap-3 px-3 py-2">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <Badge variant={tx.type}>{TYPE_LABEL[tx.type]}</Badge>
-                                <span className="text-xs text-gray-400">
-                                  {new Date(tx.createdAt).toLocaleString("vi-VN")}
-                                </span>
-                              </div>
-                              <div className="mt-1 truncate text-xs text-gray-500">
-                                {tx.user?.name ?? "Không rõ người dùng"}{tx.note ? ` · ${tx.note}` : ""}
-                              </div>
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <div className={`font-mono text-sm font-semibold ${TYPE_COLOR[tx.type]}`}>
-                                {tx.type === "in" ? "+" : tx.type === "out" ? "-" : "="}{tx.qty}
-                              </div>
-                              <div className="mt-0.5 text-xs text-gray-400">{fmtCurrency(tx.totalPrice)}</div>
-                            </div>
+        <div className="overflow-hidden rounded-xl border border-[#e5e9f0] bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] border-collapse text-[13px]">
+              <thead>
+                <tr>
+                  <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Mã hàng</th>
+                  <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Tên hàng</th>
+                  <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Tồn kho</th>
+                  <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Đơn giá (₫)</th>
+                  <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Thành tiền (₫)</th>
+                  <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((i) => {
+                  const low = i.qty < i.minQty;
+                  const expanded = expandedItemId === i.id;
+                  const recentTxs = recentTxsByItem[i.id] ?? [];
+                  const recentError = recentErrorByItem[i.id];
+                  return (
+                    <Fragment key={i.id}>
+                      <tr
+                        className="cursor-pointer border-b border-[#f0f2f6] transition-colors hover:bg-[#f6f9ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#185FA5]"
+                        onClick={() => toggleItemTransactions(i)}
+                        onKeyDown={(event) => handleItemRowKeyDown(event, i)}
+                        tabIndex={0}
+                        role="button"
+                        aria-expanded={expanded}
+                        aria-label={`Xem 5 giao dịch gần nhất của ${i.code} - ${i.name}`}
+                      >
+                        <td className="px-3.5 py-2.5 align-middle">
+                          <Badge variant={i.category.code} className="font-bold tracking-wide">{i.code}</Badge>
+                        </td>
+                        <td className="px-3.5 py-2.5 align-middle">
+                          <div className="font-semibold text-[#1a1a2e]">{i.name}</div>
+                          <div className="mt-0.5 text-[11px] text-[#aab]">{i.category.name}</div>
+                        </td>
+                        <td className="px-3.5 py-2.5 align-middle">
+                          <span className={low ? "font-bold text-[#c0392b]" : "font-semibold text-[#1a1a2e]"}>
+                            {i.qty} {i.unit}{low ? " ⚠" : ""}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2.5 align-middle font-medium text-[#374151]">{fmtCurrency(i.unitPrice)}</td>
+                        <td className="px-3.5 py-2.5 align-middle font-bold text-[#1a1a2e]">{fmtCurrency(i.qty * i.unitPrice)}</td>
+                        <td className="px-3.5 py-2.5 align-middle">
+                          <div className="flex gap-1 whitespace-nowrap">
+                            <button
+                              type="button"
+                              className="rounded-md border border-[#dde1ea] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#555] transition hover:bg-[#f0f2f6]"
+                              onClick={(e) => { e.stopPropagation(); setModal({ type: "qr", item: i }); }}
+                            >
+                              QR
+                            </button>
+                            {can("edit_items") && (
+                              <button
+                                type="button"
+                                className="rounded-md border border-[#185FA5] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#185FA5] transition hover:bg-[#ebf3fb]"
+                                onClick={(e) => { e.stopPropagation(); openEdit(i); }}
+                              >
+                                Sửa
+                              </button>
+                            )}
+                            {can("delete_items") && (
+                              <button
+                                type="button"
+                                className="rounded-md border border-[#c0392b] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#c0392b] transition hover:bg-[#fdf0ee]"
+                                onClick={(e) => { e.stopPropagation(); handleDelete(i.id, i.code); }}
+                              >
+                                Xóa
+                              </button>
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </Card>
-            );
-          })}
+                        </td>
+                      </tr>
+                      {expanded && (
+                        <tr>
+                          <td colSpan={6} className="border-b border-[#f0f2f6] bg-[#f8f9fc] px-3.5 py-3">
+                            <div className="mb-2 text-xs font-semibold text-[#555]">5 giao dịch gần nhất</div>
+                            {recentLoadingId === i.id ? (
+                              <div className="text-sm text-[#8892a4]">Đang tải giao dịch...</div>
+                            ) : recentError ? (
+                              <Alert type="error" message={recentError} />
+                            ) : recentTxs.length === 0 ? (
+                              <div className="rounded-md border border-dashed border-[#dde1ea] bg-white px-3 py-3 text-center text-sm text-[#aab]">
+                                Chưa có giao dịch nào cho hàng hóa này
+                              </div>
+                            ) : (
+                              <div className="divide-y divide-[#f0f2f6] rounded-md border border-[#e5e9f0] bg-white">
+                                {recentTxs.map((tx) => (
+                                  <div key={tx.id} className="flex items-start justify-between gap-3 px-3 py-2">
+                                    <div className="min-w-0">
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        <Badge variant={tx.type}>{TYPE_LABEL[tx.type]}</Badge>
+                                        <span className="text-xs text-[#8892a4]">
+                                          {new Date(tx.createdAt).toLocaleString("vi-VN")}
+                                        </span>
+                                      </div>
+                                      <div className="mt-1 whitespace-normal break-words text-xs text-[#555]">
+                                        {tx.user?.name ?? "Không rõ người dùng"}{tx.note ? ` · ${tx.note}` : ""}
+                                      </div>
+                                    </div>
+                                    <div className="shrink-0 text-right">
+                                      <div className={`font-mono text-sm font-semibold ${TYPE_COLOR[tx.type]}`}>
+                                        {tx.type === "in" ? "+" : tx.type === "out" ? "-" : "="}{tx.qty}
+                                      </div>
+                                      <div className="mt-0.5 text-xs text-[#8892a4]">{fmtCurrency(tx.totalPrice)}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           {filtered.length === 0 && !loading && (
-            <div className="text-center text-gray-400 py-8 text-sm">Không có hàng hóa nào</div>
+            <div className="px-4 py-10 text-center text-[13px] text-[#aab]">Không tìm thấy hàng hóa phù hợp.</div>
           )}
         </div>
       )}
@@ -259,51 +313,101 @@ export default function ItemsPage() {
       {/* Add/Edit Modal */}
       {(modal.type === "add" || modal.type === "edit") && (
         <Modal
-          title={modal.type === "add" ? "Thêm hàng hóa mới" : "Chỉnh sửa hàng hóa"}
+          title={modal.type === "add" ? "Thêm hàng hóa" : "Sửa hàng hóa"}
           onClose={() => setModal({ type: "none" })}
           footer={<>
-            <Button onClick={() => setModal({ type: "none" })}>Hủy</Button>
-            <Button variant="primary" onClick={saveItem} disabled={saving}>
+            <button
+              type="button"
+              onClick={() => setModal({ type: "none" })}
+              className="rounded-lg border border-[#dde1ea] bg-white px-4 py-2 text-[13px] font-semibold text-[#555] transition hover:bg-gray-50"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={saveItem}
+              disabled={saving}
+              className="rounded-lg border-0 bg-[#185FA5] px-[18px] py-2 text-[13px] font-bold text-white transition hover:bg-[#0e4a86] disabled:cursor-not-allowed disabled:opacity-60"
+            >
               {saving ? "Đang lưu..." : modal.type === "add" ? "Lưu" : "Cập nhật"}
-            </Button>
+            </button>
           </>}
         >
           {formError && <div className="mb-4"><Alert type="error" message={formError} /></div>}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <FormGroup label="Tên hàng hóa" required>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              </FormGroup>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-[#555]">Mã hàng *</label>
+              <input
+                className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
+                value={form.code}
+                onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+                maxLength={4}
+                pattern="[A-Z][0-9]{3}"
+                placeholder="Ví dụ: N123"
+              />
             </div>
-            <>
-              <FormGroup label="Danh mục">
-                <Select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: parseInt(e.target.value) })} required>
-                  <option value={0}>-- Chọn danh mục --</option>
-                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
-                </Select>
-              </FormGroup>
-              <FormGroup label="Mã hàng" required>
-                <Input
-                  value={form.code}
-                  onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-                  maxLength={4}
-                  pattern="[A-Z][0-9]{3}"
-                  placeholder="Vd: N123, R001"
-                />
-              </FormGroup>
-            </>
-            <FormGroup label="Đơn vị tính">
-              <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
-            </FormGroup>
-            <FormGroup label="Đơn giá (VNĐ)">
-              <Input type="number" min={0} value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: parseInt(e.target.value) || 0 })} />
-            </FormGroup>
-            <FormGroup label="Tồn kho tối thiểu">
-              <Input type="number" min={0} value={form.minQty} onChange={(e) => setForm({ ...form, minQty: parseInt(e.target.value) || 0 })} />
-            </FormGroup>
-            <FormGroup label={modal.type === "add" ? "Số lượng ban đầu" : "Số lượng tồn kho"}>
-              <Input type="number" min={0} value={form.qty} onChange={(e) => setForm({ ...form, qty: parseInt(e.target.value) || 0 })} />
-            </FormGroup>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-[#555]">Loại hàng *</label>
+              <select
+                className="w-full rounded-lg border border-[#dde1ea] bg-white px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
+                value={form.categoryId}
+                onChange={(e) => setForm({ ...form, categoryId: parseInt(e.target.value) })}
+                required
+              >
+                <option value={0}>-- Chọn danh mục --</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{getCategoryLabel(c)}</option>)}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-xs font-semibold text-[#555]">Tên hàng *</label>
+              <input
+                className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Tên đầy đủ của hàng hóa"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-[#555]">{modal.type === "add" ? "Tồn kho" : "Số lượng tồn kho"}</label>
+              <input
+                className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
+                type="number"
+                min={0}
+                value={form.qty}
+                onChange={(e) => setForm({ ...form, qty: parseInt(e.target.value) || 0 })}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-[#555]">Đơn vị</label>
+              <input
+                className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
+                value={form.unit}
+                onChange={(e) => setForm({ ...form, unit: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-[#555]">Đơn giá (₫)</label>
+              <input
+                className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
+                type="number"
+                min={0}
+                value={form.unitPrice}
+                onChange={(e) => setForm({ ...form, unitPrice: parseInt(e.target.value) || 0 })}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-[#555]">Ngưỡng cảnh báo</label>
+              <input
+                className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
+                type="number"
+                min={0}
+                value={form.minQty}
+                onChange={(e) => setForm({ ...form, minQty: parseInt(e.target.value) || 0 })}
+                placeholder="0"
+              />
+            </div>
           </div>
         </Modal>
       )}

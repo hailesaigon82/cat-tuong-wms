@@ -149,7 +149,7 @@ export default function UsersPage() {
           }
         >
           {formError && <div className="mb-4"><Alert type="error" message={formError} /></div>}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormGroup label="Họ tên" required>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </FormGroup>

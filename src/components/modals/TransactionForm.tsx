@@ -105,6 +105,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   const [recentError, setRecentError] = useState("");
   const debouncedItemSearch = useDebounce(itemSearch, 300);
   const alertRef = useRef<HTMLDivElement | null>(null);
+  const recentRequestSeq = useRef(0);
 
   const cfg = allowTypeSwitch ? { title: "Xuất Nhập", qtyLabel: "Số lượng" } : CONFIG[txType];
   const qtyNum = Number(qty);
@@ -165,6 +166,8 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   }, [debouncedItemSearch, selectedItem]);
 
   const loadRecentTransactions = useCallback(async (nextItemId: number) => {
+    const seq = recentRequestSeq.current + 1;
+    recentRequestSeq.current = seq;
     setRecentLoading(true);
     setRecentError("");
     try {
@@ -176,22 +179,28 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
           `/transactions?limit=3&page=1&itemId=${nextItemId}&type=adj`
         ),
       ]);
+      if (recentRequestSeq.current !== seq) return;
       setStockRecentTxs(stockRes.data);
       setAdjustmentRecentTxs(adjustmentRes.data);
     } catch (e) {
+      if (recentRequestSeq.current !== seq) return;
       setStockRecentTxs([]);
       setAdjustmentRecentTxs([]);
       setRecentError(e instanceof ApiError ? e.message : "Không thể tải giao dịch gần nhất");
     } finally {
-      setRecentLoading(false);
+      if (recentRequestSeq.current === seq) {
+        setRecentLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     if (!selectedItem) {
+      recentRequestSeq.current += 1;
       setStockRecentTxs([]);
       setAdjustmentRecentTxs([]);
       setRecentError("");
+      setRecentLoading(false);
       return;
     }
     loadRecentTransactions(selectedItem.id);
