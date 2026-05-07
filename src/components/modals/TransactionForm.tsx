@@ -685,6 +685,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                     step={0.01}
                     inputMode="decimal"
                     value={qty}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => handleQtyChange(e.target.value)}
                     className="min-w-0 flex-1 border-0 bg-transparent px-2 py-2.5 text-center text-base font-bold text-[#0f172a] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
