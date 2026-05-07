@@ -62,6 +62,7 @@ export default function ItemsPage() {
   const router = useRouter();
   const [items, setItems]           = useState<ApiItem[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [deleteCategoryIds, setDeleteCategoryIds] = useState<Set<number>>(new Set());
   const [search, setSearch]         = useState("");
   const [loading, setLoading]       = useState(true);
   const [pageError, setPageError]   = useState("");
@@ -94,7 +95,14 @@ export default function ItemsPage() {
   useEffect(() => {
     loadItems();
     api.get<ApiCategory[]>("/items/categories?action=create").then(setCategories).catch(() => {});
-  }, [loadItems]);
+    if (can("delete_items")) {
+      api.get<ApiCategory[]>("/items/categories?action=delete")
+        .then((data) => setDeleteCategoryIds(new Set(data.map((category) => category.id))))
+        .catch(() => setDeleteCategoryIds(new Set()));
+    } else {
+      setDeleteCategoryIds(new Set());
+    }
+  }, [can, loadItems]);
 
   const filtered = items.filter(
     (i) => i.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -278,6 +286,7 @@ export default function ItemsPage() {
                   const expanded = expandedItemId === i.id;
                   const recentTxs = recentTxsByItem[i.id] ?? [];
                   const recentError = recentErrorByItem[i.id];
+                  const canDeleteItem = can("delete_items") && deleteCategoryIds.has(i.categoryId);
                   return (
                     <Fragment key={i.id}>
                       <tr
@@ -339,7 +348,7 @@ export default function ItemsPage() {
                                 Sửa
                               </button>
                             )}
-                            {can("delete_items") && (
+                            {canDeleteItem && (
                               <button
                                 type="button"
                                 className="rounded-md border border-[#c0392b] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#c0392b] transition hover:bg-[#fdf0ee]"
