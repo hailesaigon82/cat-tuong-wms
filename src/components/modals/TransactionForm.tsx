@@ -145,11 +145,16 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
 
   const showAlert = useCallback((nextAlert: { msg: string; type: "error" | "success" }) => {
     setAlert(nextAlert);
-    window.requestAnimationFrame(() => {
-      alertRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      alertRef.current?.focus();
-    });
   }, []);
+
+  useEffect(() => {
+    if (!alert) return;
+    const timer = window.setTimeout(() => {
+      alertRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      alertRef.current?.focus({ preventScroll: true });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [alert]);
 
   useEffect(() => {
     if (!allowTypeSwitch) {
