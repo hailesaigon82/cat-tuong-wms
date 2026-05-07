@@ -404,15 +404,14 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                 <span
                   className={cn(
                     "inline-flex items-center gap-2 rounded-xl border border-[#d6dae4] bg-[#f7f8fb] px-3 py-2 text-sm font-bold text-[#475569] shadow-sm",
-                    selectedItem && selectedItem.qty > 0 && "border-[#86d9b8] bg-[#ecfdf5] text-[#047857] shadow-[0_6px_18px_-12px_rgba(5,150,105,0.75)]",
-                    selectedItem && selectedItem.qty <= 0 && "border-[#fecdd3] bg-[#fff1f3] text-[#be123c] shadow-[0_6px_18px_-12px_rgba(225,29,72,0.75)]"
+                    selectedItem && selectedItem.qty > 0 && "border-[#047857] bg-[#059669] text-white shadow-[0_8px_18px_-12px_rgba(5,150,105,0.9)]",
+                    selectedItem && selectedItem.qty <= 0 && "border-[#be123c] bg-[#e11d48] text-white shadow-[0_8px_18px_-12px_rgba(225,29,72,0.9)]"
                   )}
                 >
                   <span
                     className={cn(
                       "h-2 w-2 rounded-full bg-[#94a3b8]",
-                      selectedItem && selectedItem.qty > 0 && "bg-[#059669]",
-                      selectedItem && selectedItem.qty <= 0 && "bg-[#e11d48]"
+                      selectedItem && "bg-white"
                     )}
                     aria-hidden="true"
                   />
@@ -545,7 +544,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                 disabled={saving}
                 className="flex flex-1 items-center justify-center rounded-xl border border-[#2563eb] bg-[#2563eb] px-[18px] py-[11px] text-sm font-semibold text-white shadow-[0_6px_14px_-8px_#2563eb,inset_0_1px_0_rgba(255,255,255,0.18)] transition hover:border-[#1d4ed8] hover:bg-[#1d4ed8] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {saving ? "Đang xử lý..." : "Xác nhận phiếu"}
+                {saving ? "Đang xử lý..." : "Xác nhận"}
               </button>
               <button
                 type="button"
