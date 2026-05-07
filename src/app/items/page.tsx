@@ -47,6 +47,15 @@ type ModalState =
   | { type: "edit"; item: ApiItem }
   | { type: "qr"; item: ApiItem };
 
+type SortKey = "code" | "name" | "qty";
+type SortDirection = "asc" | "desc";
+
+const SORT_LABEL: Record<SortKey, string> = {
+  code: "Mã hàng",
+  name: "Tên hàng",
+  qty: "Tồn kho",
+};
+
 export default function ItemsPage() {
   const can = useAppStore((s) => s.can);
   const [items, setItems]           = useState<ApiItem[]>([]);
@@ -61,6 +70,10 @@ export default function ItemsPage() {
   const [recentTxsByItem, setRecentTxsByItem] = useState<Record<number, ApiTransaction[]>>({});
   const [recentLoadingId, setRecentLoadingId] = useState<number | null>(null);
   const [recentErrorByItem, setRecentErrorByItem] = useState<Record<number, string>>({});
+  const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
+    key: "code",
+    direction: "asc",
+  });
   const [form, setForm]             = useState({
     categoryId: 0, name: "", code: "", unit: "kg", qty: 0, unitPrice: 0, minQty: 5,
   });
@@ -85,6 +98,13 @@ export default function ItemsPage() {
     (i) => i.name.toLowerCase().includes(search.toLowerCase()) ||
            i.code.toLowerCase().includes(search.toLowerCase())
   );
+  const sortedItems = [...filtered].sort((a, b) => {
+    const direction = sort.direction === "asc" ? 1 : -1;
+    if (sort.key === "qty") {
+      return (a.qty - b.qty) * direction;
+    }
+    return a[sort.key].localeCompare(b[sort.key], "vi", { numeric: true, sensitivity: "base" }) * direction;
+  });
 
   const openAdd = () => {
     const defaultCategory = categories.find((category) => category.code === "N") ?? categories[0];
@@ -182,6 +202,29 @@ export default function ItemsPage() {
     setForm((current) => ({ ...current, [field]: parseDecimalInput(value) }));
   };
 
+  const toggleSort = (key: SortKey) => {
+    setSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const renderSortableHeader = (key: SortKey) => {
+    const active = sort.key === key;
+    return (
+      <button
+        type="button"
+        onClick={() => toggleSort(key)}
+        className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-left transition hover:bg-[#eef3fb] hover:text-[#185FA5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#185FA5]"
+      >
+        <span>{SORT_LABEL[key]}</span>
+        <span className={active ? "text-[#185FA5]" : "text-[#b5bdca]"} aria-hidden="true">
+          {active ? (sort.direction === "asc" ? "↑" : "↓") : "↕"}
+        </span>
+      </button>
+    );
+  };
+
   return (
     <AppShell title="Hàng hóa">
       <div className="mb-4 flex flex-wrap items-center gap-2.5">
@@ -215,16 +258,16 @@ export default function ItemsPage() {
             <table className="w-full min-w-[760px] border-collapse text-[13px]">
               <thead>
                 <tr>
-                  <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Mã hàng</th>
-                  <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Tên hàng</th>
-                  <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Tồn kho</th>
+                  <th aria-sort={sort.key === "code" ? (sort.direction === "asc" ? "ascending" : "descending") : "none"} className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">{renderSortableHeader("code")}</th>
+                  <th aria-sort={sort.key === "name" ? (sort.direction === "asc" ? "ascending" : "descending") : "none"} className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">{renderSortableHeader("name")}</th>
+                  <th aria-sort={sort.key === "qty" ? (sort.direction === "asc" ? "ascending" : "descending") : "none"} className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">{renderSortableHeader("qty")}</th>
                   <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Đơn giá (₫)</th>
                   <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Thành tiền (₫)</th>
                   <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((i) => {
+                {sortedItems.map((i) => {
                   const low = i.qty < i.minQty;
                   const expanded = expandedItemId === i.id;
                   const recentTxs = recentTxsByItem[i.id] ?? [];
