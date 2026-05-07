@@ -102,7 +102,6 @@ export default function ItemsPage() {
           name: form.name,
           code: form.code.trim().toUpperCase(),
           unit: form.unit,
-          qty: form.qty,
           unitPrice: form.unitPrice,
           minQty: form.minQty,
         });
@@ -367,17 +366,19 @@ export default function ItemsPage() {
                 placeholder="Tên đầy đủ của hàng hóa"
               />
             </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-[#555]">{modal.type === "add" ? "Tồn kho" : "Số lượng tồn kho"}</label>
-              <input
-                className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
-                type="number"
-                min={0}
-                value={form.qty}
-                onChange={(e) => setForm({ ...form, qty: parseInt(e.target.value) || 0 })}
-                placeholder="0"
-              />
-            </div>
+            {modal.type === "add" && (
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-[#555]">Số tồn đầu tiên</label>
+                <input
+                  className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
+                  type="number"
+                  min={0}
+                  value={form.qty}
+                  onChange={(e) => setForm({ ...form, qty: parseInt(e.target.value) || 0 })}
+                  placeholder="0"
+                />
+              </div>
+            )}
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-[#555]">Đơn vị</label>
               <input
