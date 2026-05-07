@@ -151,27 +151,31 @@ export default function HistoryPage() {
               ))}
             </div>
 
-            <div className="mt-3 grid gap-2 sm:grid-cols-[150px_150px_auto_auto]">
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="min-h-[38px] rounded-xl border border-[#d6dae4] bg-white px-3 text-sm text-[#0f172a] outline-none transition hover:border-[#b9c0cd] focus:border-[#2563eb] focus:shadow-[0_0_0_4px_rgba(37,99,235,0.15)]"
-                aria-label="Từ ngày"
-              />
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="min-h-[38px] rounded-xl border border-[#d6dae4] bg-white px-3 text-sm text-[#0f172a] outline-none transition hover:border-[#b9c0cd] focus:border-[#2563eb] focus:shadow-[0_0_0_4px_rgba(37,99,235,0.15)]"
-                aria-label="Đến ngày"
-              />
-              <Button size="sm" variant="primary" onClick={applyDateFilter} disabled={loading}>
-                Lọc
-              </Button>
-              <Button size="sm" onClick={clearFilters} disabled={loading}>
-                Xóa
-              </Button>
+            <div className="mt-3 grid gap-2 sm:grid-cols-[150px_150px_auto_auto] sm:items-center">
+              <div className="grid grid-cols-2 gap-2 sm:contents">
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="min-h-[36px] min-w-0 rounded-lg border border-[#d6dae4] bg-white px-2.5 text-xs text-[#0f172a] outline-none transition hover:border-[#b9c0cd] focus:border-[#2563eb] focus:shadow-[0_0_0_4px_rgba(37,99,235,0.15)] sm:min-h-[38px] sm:px-3 sm:text-sm"
+                  aria-label="Từ ngày"
+                />
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="min-h-[36px] min-w-0 rounded-lg border border-[#d6dae4] bg-white px-2.5 text-xs text-[#0f172a] outline-none transition hover:border-[#b9c0cd] focus:border-[#2563eb] focus:shadow-[0_0_0_4px_rgba(37,99,235,0.15)] sm:min-h-[38px] sm:px-3 sm:text-sm"
+                  aria-label="Đến ngày"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:contents">
+                <Button size="sm" variant="primary" className="justify-center" onClick={applyDateFilter} disabled={loading}>
+                  Lọc
+                </Button>
+                <Button size="sm" className="justify-center" onClick={clearFilters} disabled={loading}>
+                  Xóa
+                </Button>
+              </div>
             </div>
 
             <div className="mt-2 text-xs font-medium text-[#94a3b8]">
@@ -236,16 +240,21 @@ export default function HistoryPage() {
               </div>
 
               {totalPages > 1 && (
-                <div className="flex items-center justify-between gap-2 border-t border-[#eef0f5] bg-white px-3.5 py-3">
+                <div className="flex items-center justify-between gap-2 border-t border-[#eef0f5] bg-white px-3 py-3 sm:px-3.5">
                   <Button
                     size="sm"
+                    className="min-w-[72px] justify-center px-2"
                     disabled={page <= 1 || loading}
                     onClick={() => loadPage(page - 1)}
                   >
-                    ← Trước
+                    Trước
                   </Button>
 
-                  <div className="flex items-center gap-1">
+                  <div className="text-xs font-semibold text-[#64748b] sm:hidden">
+                    {page}/{totalPages}
+                  </div>
+
+                  <div className="hidden items-center gap-1 sm:flex">
                     {Array.from({ length: Math.min(totalPages, 5) }, (_, idx) => {
                       let p: number;
                       if (totalPages <= 5) {
@@ -276,10 +285,11 @@ export default function HistoryPage() {
 
                   <Button
                     size="sm"
+                    className="min-w-[72px] justify-center px-2"
                     disabled={page >= totalPages || loading}
                     onClick={() => loadPage(page + 1)}
                   >
-                    Sau →
+                    Sau
                   </Button>
                 </div>
               )}
