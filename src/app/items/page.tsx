@@ -15,6 +15,7 @@ const TYPE_COLOR: Record<string, string> = {
   out: "text-red-600",
   adj: "text-amber-600",
 };
+const ITEM_CODE_PATTERN = /^[A-Z][0-9]{3}$/;
 
 type ModalState =
   | { type: "none" }
@@ -37,7 +38,7 @@ export default function ItemsPage() {
   const [recentLoadingId, setRecentLoadingId] = useState<number | null>(null);
   const [recentErrorByItem, setRecentErrorByItem] = useState<Record<number, string>>({});
   const [form, setForm]             = useState({
-    categoryId: 0, name: "", code: "", unit: "cái", qty: 0, unitPrice: 0, minQty: 5,
+    categoryId: 0, name: "", code: "", unit: "kg", qty: 0, unitPrice: 0, minQty: 5,
   });
 
   const loadItems = useCallback(async () => {
@@ -62,7 +63,8 @@ export default function ItemsPage() {
   );
 
   const openAdd = () => {
-    setForm({ categoryId: categories[0]?.id ?? 0, name: "", code: "", unit: "cái", qty: 0, unitPrice: 0, minQty: 5 });
+    const defaultCategory = categories.find((category) => category.code === "N") ?? categories[0];
+    setForm({ categoryId: defaultCategory?.id ?? 0, name: "", code: "", unit: "kg", qty: 0, unitPrice: 0, minQty: 5 });
     setFormError("");
     setModal({ type: "add" });
   };
@@ -75,7 +77,19 @@ export default function ItemsPage() {
 
   const saveItem = async () => {
     if (!form.name.trim() || !form.code.trim()) { setFormError("Vui lòng nhập tên và mã hàng"); return; }
+    if (modal.type === "add" && !ITEM_CODE_PATTERN.test(form.code.trim().toUpperCase())) {
+      setFormError("Mã hàng phải gồm 1 chữ cái và 3 số, ví dụ N123 hoặc R001");
+      return;
+    }
     if (modal.type === "add" && !form.categoryId) { setFormError("Vui lòng chọn danh mục"); return; }
+    if (modal.type === "add") {
+      const selectedCategory = categories.find((category) => category.id === form.categoryId);
+      const normalizedCode = form.code.trim().toUpperCase();
+      if (selectedCategory && normalizedCode[0] !== selectedCategory.code.toUpperCase()) {
+        setFormError(`Mã hàng phải bắt đầu bằng mã danh mục ${selectedCategory.code}, ví dụ ${selectedCategory.code}123`);
+        return;
+      }
+    }
     setSaving(true); setFormError("");
     try {
       if (modal.type === "edit") {
@@ -255,13 +269,19 @@ export default function ItemsPage() {
             </div>
             {modal.type === "add" && <>
               <FormGroup label="Danh mục">
-                <Select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: parseInt(e.target.value) })}>
+                <Select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: parseInt(e.target.value) })} required>
                   <option value={0}>-- Chọn danh mục --</option>
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
                 </Select>
               </FormGroup>
               <FormGroup label="Mã hàng" required>
-                <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Vd: N0001" />
+                <Input
+                  value={form.code}
+                  onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+                  maxLength={4}
+                  pattern="[A-Z][0-9]{3}"
+                  placeholder="Vd: N123, R001"
+                />
               </FormGroup>
             </>}
             <FormGroup label="Đơn vị tính">
