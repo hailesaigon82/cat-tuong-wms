@@ -403,15 +403,16 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                 </div>
                 <span
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-xl border border-[#d6dae4] bg-[#f7f8fb] px-3 py-2 text-sm font-bold text-[#475569] shadow-sm",
-                    selectedItem && selectedItem.qty > 0 && "border-[#047857] bg-[#059669] text-white shadow-[0_8px_18px_-12px_rgba(5,150,105,0.9)]",
-                    selectedItem && selectedItem.qty <= 0 && "border-[#be123c] bg-[#e11d48] text-white shadow-[0_8px_18px_-12px_rgba(225,29,72,0.9)]"
+                    "inline-flex items-center gap-2 rounded-xl border-2 border-[#d6dae4] bg-[#f7f8fb] px-3.5 py-2.5 text-sm font-extrabold text-[#475569] shadow-sm",
+                    selectedItem && selectedItem.qty > 0 && "border-[#059669] bg-[#d1fae5] text-[#064e3b] shadow-[0_8px_20px_-14px_rgba(5,150,105,0.9)]",
+                    selectedItem && selectedItem.qty <= 0 && "border-[#e11d48] bg-[#ffe4e6] text-[#881337] shadow-[0_8px_20px_-14px_rgba(225,29,72,0.9)]"
                   )}
                 >
                   <span
                     className={cn(
-                      "h-2 w-2 rounded-full bg-[#94a3b8]",
-                      selectedItem && "bg-white"
+                      "h-2.5 w-2.5 rounded-full bg-[#94a3b8]",
+                      selectedItem && selectedItem.qty > 0 && "bg-[#059669]",
+                      selectedItem && selectedItem.qty <= 0 && "bg-[#e11d48]"
                     )}
                     aria-hidden="true"
                   />
