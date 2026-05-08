@@ -1,6 +1,6 @@
 // src/app/items/page.tsx
 "use client";
-import { Fragment, useState, useEffect, useCallback, type KeyboardEvent } from "react";
+import { Fragment, useState, useEffect, useCallback, type FocusEvent, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/store";
 import { AppShell } from "@/components/layout/AppShell";
@@ -33,6 +33,10 @@ function isDecimalInputAllowed(value: string) {
 
 function hasMaxTwoDecimals(value: number) {
   return Number.isFinite(value) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-9;
+}
+
+function selectInputValue(event: FocusEvent<HTMLInputElement>) {
+  event.currentTarget.select();
 }
 
 function formatQty(value: number) {
@@ -458,6 +462,7 @@ export default function ItemsPage() {
               <input
                 className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
                 value={form.code}
+                onFocus={selectInputValue}
                 onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
                 maxLength={4}
                 pattern="[A-Z][0-9]{3}"
@@ -481,6 +486,7 @@ export default function ItemsPage() {
               <input
                 className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
                 value={form.name}
+                onFocus={selectInputValue}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Tên đầy đủ của hàng hóa"
               />
@@ -494,6 +500,7 @@ export default function ItemsPage() {
                   min={0}
                   step={0.01}
                   value={form.qty}
+                  onFocus={selectInputValue}
                   onChange={(e) => updateDecimalField("qty", e.target.value)}
                   placeholder="0"
                 />
@@ -504,6 +511,7 @@ export default function ItemsPage() {
               <input
                 className="w-full rounded-lg border border-[#dde1ea] px-3 py-2 text-[13px] outline-none transition focus:border-[#185FA5]"
                 value={form.unit}
+                onFocus={selectInputValue}
                 onChange={(e) => setForm({ ...form, unit: e.target.value })}
               />
             </div>
@@ -515,6 +523,7 @@ export default function ItemsPage() {
                 min={0}
                 step={1}
                 value={form.unitPrice}
+                onFocus={selectInputValue}
                 onChange={(e) => setForm({ ...form, unitPrice: parseInt(e.target.value) || 0 })}
                 placeholder="0"
               />
@@ -527,6 +536,7 @@ export default function ItemsPage() {
                 min={0}
                 step={0.01}
                 value={form.minQty}
+                onFocus={selectInputValue}
                 onChange={(e) => updateDecimalField("minQty", e.target.value)}
                 placeholder="0"
               />
