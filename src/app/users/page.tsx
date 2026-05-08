@@ -35,7 +35,7 @@ export default function UsersPage() {
   const loadUsers = useCallback(async () => {
     try {
       const data = await api.get<ApiUser[]>("/users");
-      setUsers(data);
+      setUsers(data.filter((user) => user.isActive));
     } catch (e) {
       setPageError(e instanceof ApiError ? e.message : "Không thể tải danh sách người dùng");
     } finally {
@@ -122,7 +122,6 @@ export default function UsersPage() {
                     <Badge variant={ROLE_BADGE[u.role.code] ?? ""}>
                       {ROLE_NAMES[u.role.code] ?? u.role.name}
                     </Badge>
-                    {!u.isActive && <span className="text-xs text-red-500">Vô hiệu</span>}
                   </div>
                   <div className="text-xs text-gray-400 mt-0.5 font-mono">{u.username}</div>
                 </div>
