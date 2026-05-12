@@ -10,6 +10,34 @@ interface QRScannerProps {
   label?: string;
 }
 
+function playScanBeep() {
+  try {
+    const AudioContextClass =
+      window.AudioContext ??
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const audioContext = new AudioContextClass();
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    const now = audioContext.currentTime;
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(880, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.15);
+    oscillator.onended = () => void audioContext.close();
+  } catch {
+    // Scanning should continue even if the browser blocks audio playback.
+  }
+}
+
 export function QRScanner({ onScan, prefix, onClose, label = "Quét mã QR" }: QRScannerProps) {
   const videoRef   = useRef<HTMLVideoElement>(null);
   const canvasRef  = useRef<HTMLCanvasElement>(null);
@@ -73,6 +101,7 @@ export function QRScanner({ onScan, prefix, onClose, label = "Quét mã QR" }: Q
                 const data = code.data;
                 if (!prefix || data.startsWith(prefix)) {
                   setStatus("✅ Đã quét thành công!");
+                  playScanBeep();
                   onScan(data);
                   return; // Dừng loop sau khi scan thành công
                 } else {
