@@ -18,21 +18,30 @@ function playScanBeep() {
     if (!AudioContextClass) return;
 
     const audioContext = new AudioContextClass();
-    const oscillator = audioContext.createOscillator();
     const gain = audioContext.createGain();
     const now = audioContext.currentTime;
 
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(880, now);
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
-
-    oscillator.connect(gain);
+    gain.gain.exponentialRampToValueAtTime(0.38, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
+    gain.gain.exponentialRampToValueAtTime(0.42, now + 0.14);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.27);
     gain.connect(audioContext.destination);
-    oscillator.start(now);
-    oscillator.stop(now + 0.15);
-    oscillator.onended = () => void audioContext.close();
+
+    const firstTone = audioContext.createOscillator();
+    firstTone.type = "square";
+    firstTone.frequency.setValueAtTime(1046.5, now);
+    firstTone.connect(gain);
+    firstTone.start(now);
+    firstTone.stop(now + 0.11);
+
+    const secondTone = audioContext.createOscillator();
+    secondTone.type = "square";
+    secondTone.frequency.setValueAtTime(1318.5, now + 0.13);
+    secondTone.connect(gain);
+    secondTone.start(now + 0.13);
+    secondTone.stop(now + 0.28);
+    secondTone.onended = () => void audioContext.close();
   } catch {
     // Scanning should continue even if the browser blocks audio playback.
   }
