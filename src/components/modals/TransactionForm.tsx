@@ -29,7 +29,7 @@ const TYPE_TEXT: Record<TransactionType, string> = {
 };
 
 const NOTE_MAX_LENGTH = 200;
-const DEFAULT_ADJUSTMENT_NOTE = "Điều chỉnh";
+const DEFAULT_ADJUSTMENT_NOTE = "Kiểm kho";
 type RecentTab = "stock" | "adjustment";
 
 const RECENT_TAB_LABEL: Record<RecentTab, string> = {
@@ -530,6 +530,8 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                       e.currentTarget.select();
                       setItemDropdownOpen(true);
                     }}
+                    onClick={(e) => e.currentTarget.select()}
+                    onMouseUp={(e) => e.preventDefault()}
                     onBlur={() => window.setTimeout(() => setItemDropdownOpen(false), 120)}
                     placeholder="Gõ mã hoặc tên hàng hóa..."
                     autoComplete="off"
