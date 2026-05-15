@@ -29,6 +29,7 @@ const TYPE_TEXT: Record<TransactionType, string> = {
 };
 
 const NOTE_MAX_LENGTH = 200;
+const DEFAULT_ADJUSTMENT_NOTE = "Điều chỉnh";
 type RecentTab = "stock" | "adjustment";
 
 const RECENT_TAB_LABEL: Record<RecentTab, string> = {
@@ -100,6 +101,10 @@ function formatQty(value: number | null | undefined) {
   }).format(round2(value));
 }
 
+function getDefaultNote(txType: TransactionType) {
+  return txType === "adj" ? DEFAULT_ADJUSTMENT_NOTE : "";
+}
+
 interface TransactionFormProps {
   type: TransactionType;
   allowTypeSwitch?: boolean;
@@ -116,7 +121,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
   const [itemDropdownOpen, setItemDropdownOpen] = useState(false);
   const [txType, setTxType]     = useState<TransactionType>(type);
   const [qty, setQty]           = useState("1");
-  const [note, setNote]         = useState("");
+  const [note, setNote]         = useState(() => getDefaultNote(type));
   const [itemsLoading, setItemsLoading] = useState(true);
   const [saving, setSaving]     = useState(false);
   const [showScanner, setShowScanner] = useState(autoOpenScanner);
@@ -375,7 +380,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
       setItemSearch(getItemLabel(updatedItem));
       setItems((current) => current.map((item) => item.id === updatedItem.id ? updatedItem : item));
       await loadRecentTransactions(selectedItem.id);
-      setQty("1"); setNote("");
+      setQty("1"); setNote(getDefaultNote(txType));
     } catch (e) {
       showAlert({ msg: getTransactionErrorMessage(e, txType), type: "error" });
     } finally {
@@ -424,7 +429,7 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
     setItemSearch("");
     setItemDropdownOpen(false);
     setQty("1");
-    setNote("");
+    setNote(getDefaultNote(txType));
     setAlert(null);
     setLastReversibleTx(null);
     setStockRecentTxs([]);
@@ -521,7 +526,10 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                     id="transaction-item-search"
                     value={itemSearch}
                     onChange={(e) => handleItemSearchChange(e.target.value)}
-                    onFocus={() => setItemDropdownOpen(true)}
+                    onFocus={(e) => {
+                      e.currentTarget.select();
+                      setItemDropdownOpen(true);
+                    }}
                     onBlur={() => window.setTimeout(() => setItemDropdownOpen(false), 120)}
                     placeholder="Gõ mã hoặc tên hàng hóa..."
                     autoComplete="off"
