@@ -54,12 +54,18 @@ type ModalState =
 
 type SortKey = "code" | "name" | "qty";
 type SortDirection = "asc" | "desc";
+type ItemTab = "ingredients" | "invoices";
 
 const SORT_LABEL: Record<SortKey, string> = {
   code: "Mã hàng",
   name: "Tên hàng",
   qty: "Tồn kho",
 };
+
+const ITEM_TABS: Array<{ key: ItemTab; label: string; categoryCodes: string[] }> = [
+  { key: "ingredients", label: "Kho Hương liệu", categoryCodes: ["R", "N"] },
+  { key: "invoices", label: "Hóa đơn", categoryCodes: ["H"] },
+];
 
 export default function ItemsPage() {
   const currentUser = useAppStore((s) => s.currentUser);
@@ -78,6 +84,7 @@ export default function ItemsPage() {
   const [recentTxsByItem, setRecentTxsByItem] = useState<Record<number, ApiTransaction[]>>({});
   const [recentLoadingId, setRecentLoadingId] = useState<number | null>(null);
   const [recentErrorByItem, setRecentErrorByItem] = useState<Record<number, string>>({});
+  const [activeTab, setActiveTab] = useState<ItemTab>("ingredients");
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: "qty",
     direction: "asc",
@@ -123,7 +130,17 @@ export default function ItemsPage() {
     }
   }, [canDeleteItems, canEditItems, loadItems]);
 
-  const filtered = items.filter(
+  const activeTabConfig = ITEM_TABS.find((tab) => tab.key === activeTab) ?? ITEM_TABS[0];
+  const tabItems = items.filter((item) =>
+    activeTabConfig.categoryCodes.includes(item.category.code.toUpperCase())
+  );
+  const tabCounts = ITEM_TABS.reduce<Record<ItemTab, number>>((counts, tab) => {
+    counts[tab.key] = items.filter((item) =>
+      tab.categoryCodes.includes(item.category.code.toUpperCase())
+    ).length;
+    return counts;
+  }, { ingredients: 0, invoices: 0 });
+  const filtered = tabItems.filter(
     (i) => i.name.toLowerCase().includes(search.toLowerCase()) ||
            i.code.toLowerCase().includes(search.toLowerCase())
   );
@@ -136,7 +153,8 @@ export default function ItemsPage() {
   });
 
   const openAdd = () => {
-    const defaultCategory = categories.find((category) => category.code === "N") ?? categories[0];
+    const preferredCategoryCode = activeTab === "invoices" ? "H" : "N";
+    const defaultCategory = categories.find((category) => category.code === preferredCategoryCode) ?? categories[0];
     setForm({ categoryId: defaultCategory?.id ?? 0, name: "", code: "", unit: "kg", qty: 0, unitPrice: 0, minQty: 5 });
     setFormError("");
     setModal({ type: "add" });
@@ -260,6 +278,37 @@ export default function ItemsPage() {
 
   return (
     <AppShell title="Hàng hóa">
+      <div className="mb-3 inline-flex w-full rounded-xl border border-[#dde1ea] bg-white p-1 sm:w-auto">
+        {ITEM_TABS.map((tab) => {
+          const active = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab.key);
+                setExpandedItemId(null);
+              }}
+              className={[
+                "flex min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition sm:flex-none",
+                active ? "bg-[#185FA5] text-white shadow-sm" : "text-[#667085] hover:bg-[#f5f7fb] hover:text-[#185FA5]",
+              ].join(" ")}
+              aria-pressed={active}
+            >
+              <span>{tab.label}</span>
+              <span
+                className={[
+                  "rounded-full px-1.5 py-0.5 text-[11px] font-bold",
+                  active ? "bg-white/20 text-white" : "bg-[#eef2f7] text-[#667085]",
+                ].join(" ")}
+              >
+                {tabCounts[tab.key]}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="mb-4 flex flex-wrap items-center gap-2.5">
         <div className="relative min-w-[200px] flex-1">
           <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-[#aab]">🔍</span>
