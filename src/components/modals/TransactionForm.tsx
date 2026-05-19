@@ -366,12 +366,16 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
     if (!note.trim()) { showAlert({ msg: "Vui lòng nhập ghi chú", type: "error" }); return; }
     setSaving(true); setAlert(null);
     try {
+      const previousQty = selectedItem.qty;
       const res = await api.post<ApiTransaction & { newQty: number }>("/transactions", {
         itemId: selectedItem.id, type: txType, qty: qtyNum,
         ...(note.trim() ? { note: note.trim() } : {}),
       });
+      const successMessage = txType === "adj"
+        ? `✅ Điều chỉnh tồn kho thành công! Tồn kho cũ: ${formatQty(previousQty)} ${selectedItem.unit} => Tồn kho mới: ${formatQty(res.newQty)} ${selectedItem.unit}`
+        : `✅ ${CONFIG[txType].title} thành công! Số lượng ${txType === "in" ? "nhập" : "xuất"}: ${formatQty(qtyNum)} ${selectedItem.unit}. Tồn kho mới: ${formatQty(res.newQty)} ${selectedItem.unit}`;
       showAlert({
-        msg: `✅ ${CONFIG[txType].title} thành công! Tồn kho mới: ${formatQty(res.newQty)} ${selectedItem.unit}`,
+        msg: successMessage,
         type: "success",
       });
       setLastReversibleTx(res);
