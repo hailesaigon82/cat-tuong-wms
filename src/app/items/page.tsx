@@ -356,7 +356,7 @@ export default function ItemsPage() {
               ].join(" ")}
               aria-pressed={active}
             >
-              <span>{tab.label} {tabCounts[tab.key]}</span>
+              <span>{tab.key === "popular" ? "Hương liệu phổ biến (T30)" : `${tab.label} ${tabCounts[tab.key]}`}</span>
             </button>
           );
         })}
