@@ -67,8 +67,8 @@ const SORT_LABEL: Record<SortKey, string> = {
 
 const ITEM_TABS: Array<{ key: ItemTab; label: string; categoryCodes?: string[] }> = [
   { key: "ingredients", label: "Kho Hương liệu", categoryCodes: ["R", "N"] },
-  { key: "invoices", label: "Hóa đơn", categoryCodes: ["H"] },
   { key: "popular", label: "Hương liệu phổ biến" },
+  { key: "invoices", label: "Hóa đơn", categoryCodes: ["H"] },
 ];
 
 export default function ItemsPage() {
@@ -356,15 +356,7 @@ export default function ItemsPage() {
               ].join(" ")}
               aria-pressed={active}
             >
-              <span>{tab.label}</span>
-              <span
-                className={[
-                  "rounded-full px-1.5 py-0.5 text-[11px] font-bold",
-                  active ? "bg-white/20 text-white" : "bg-[#eef2f7] text-[#667085]",
-                ].join(" ")}
-              >
-                {tabCounts[tab.key]}
-              </span>
+              <span>{tab.label} {tabCounts[tab.key]}</span>
             </button>
           );
         })}
