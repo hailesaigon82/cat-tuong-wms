@@ -12,7 +12,7 @@ const TYPE_TEXT: Record<string, string> = {
   adj: "text-amber-600",
 };
 
-const LIMIT = 20;
+const LIMIT = 50;
 type HistoryTab = "stock" | "adjustment";
 
 const TAB_LABEL: Record<HistoryTab, string> = {
@@ -39,35 +39,12 @@ function getStockAfter(tx: ApiTransaction) {
   return tx.qty;
 }
 
-function sortByNewest(a: ApiTransaction, b: ApiTransaction) {
-  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-}
-
 function buildDateQuery(fromDate: string, toDate: string) {
   const params = new URLSearchParams();
   if (fromDate) params.set("from", fromDate);
   if (toDate) params.set("to", toDate);
   const query = params.toString();
   return query ? `&${query}` : "";
-}
-
-async function loadStockPage(p: number, dateQuery: string): Promise<TransactionListResponse> {
-  const fetchLimit = LIMIT * p;
-  const [inRes, outRes] = await Promise.all([
-    api.get<TransactionListResponse>(`/transactions?limit=${fetchLimit}&page=1&type=in${dateQuery}`),
-    api.get<TransactionListResponse>(`/transactions?limit=${fetchLimit}&page=1&type=out${dateQuery}`),
-  ]);
-  const total = inRes.pagination.total + outRes.pagination.total;
-  const merged = [...inRes.data, ...outRes.data].sort(sortByNewest);
-  return {
-    data: merged.slice((p - 1) * LIMIT, p * LIMIT),
-    pagination: {
-      total,
-      page: p,
-      limit: LIMIT,
-      totalPages: Math.ceil(total / LIMIT),
-    },
-  };
 }
 
 export default function HistoryPage() {
@@ -93,7 +70,7 @@ export default function HistoryPage() {
     setError("");
     try {
       const res = activeTab === "stock"
-        ? await loadStockPage(p, dateQuery)
+        ? await api.get<TransactionListResponse>(`/transactions?limit=${LIMIT}&page=${p}&types=in,out${dateQuery}`)
         : await api.get<TransactionListResponse>(`/transactions?limit=${LIMIT}&page=${p}&type=adj${dateQuery}`);
       if (requestSeq.current !== seq) return;
       setTxs(res.data);
