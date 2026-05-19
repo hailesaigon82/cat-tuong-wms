@@ -17,6 +17,8 @@ const TYPE_COLOR: Record<string, string> = {
   adj: "text-amber-600",
 };
 const ITEM_CODE_PATTERN = /^[A-Z][0-9]{3}$/;
+const POPULAR_ITEMS_LIMIT = 30;
+const POPULAR_CATEGORY_CODES = ["R", "N"];
 
 function getCategoryLabel(category: ApiCategory) {
   return `${category.code} - ${category.name}`;
@@ -54,7 +56,8 @@ type ModalState =
 
 type SortKey = "code" | "name" | "qty";
 type SortDirection = "asc" | "desc";
-type ItemTab = "ingredients" | "invoices";
+type ItemTab = "ingredients" | "invoices" | "popular";
+type DisplayItem = ApiItem & { transactionCount?: number };
 
 const SORT_LABEL: Record<SortKey, string> = {
   code: "Mã hàng",
@@ -62,9 +65,10 @@ const SORT_LABEL: Record<SortKey, string> = {
   qty: "Tồn kho",
 };
 
-const ITEM_TABS: Array<{ key: ItemTab; label: string; categoryCodes: string[] }> = [
+const ITEM_TABS: Array<{ key: ItemTab; label: string; categoryCodes?: string[] }> = [
   { key: "ingredients", label: "Kho Hương liệu", categoryCodes: ["R", "N"] },
   { key: "invoices", label: "Hóa đơn", categoryCodes: ["H"] },
+  { key: "popular", label: "Hương liệu phổ biến" },
 ];
 
 export default function ItemsPage() {
@@ -72,6 +76,7 @@ export default function ItemsPage() {
   const router = useRouter();
   const [items, setItems]           = useState<ApiItem[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [editCategories, setEditCategories] = useState<ApiCategory[]>([]);
   const [editCategoryIds, setEditCategoryIds] = useState<Set<number>>(new Set());
   const [deleteCategoryIds, setDeleteCategoryIds] = useState<Set<number>>(new Set());
   const [search, setSearch]         = useState("");
@@ -85,6 +90,10 @@ export default function ItemsPage() {
   const [recentLoadingId, setRecentLoadingId] = useState<number | null>(null);
   const [recentErrorByItem, setRecentErrorByItem] = useState<Record<number, string>>({});
   const [activeTab, setActiveTab] = useState<ItemTab>("ingredients");
+  const [popularItems, setPopularItems] = useState<DisplayItem[]>([]);
+  const [popularLoading, setPopularLoading] = useState(false);
+  const [popularError, setPopularError] = useState("");
+  const [popularLoaded, setPopularLoaded] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: "qty",
     direction: "asc",
@@ -99,6 +108,7 @@ export default function ItemsPage() {
   const canTxIn = permissions.includes("tx_in");
   const canTxOut = permissions.includes("tx_out");
   const canTxAdj = permissions.includes("tx_adj");
+  const canViewHistory = permissions.includes("view_history");
 
   const loadItems = useCallback(async () => {
     try {
@@ -116,9 +126,16 @@ export default function ItemsPage() {
     api.get<ApiCategory[]>("/items/categories?action=create").then(setCategories).catch(() => {});
     if (canEditItems) {
       api.get<ApiCategory[]>("/items/categories?action=edit")
-        .then((data) => setEditCategoryIds(new Set(data.map((category) => category.id))))
-        .catch(() => setEditCategoryIds(new Set()));
+        .then((data) => {
+          setEditCategories(data);
+          setEditCategoryIds(new Set(data.map((category) => category.id)));
+        })
+        .catch(() => {
+          setEditCategories([]);
+          setEditCategoryIds(new Set());
+        });
     } else {
+      setEditCategories([]);
       setEditCategoryIds(new Set());
     }
     if (canDeleteItems) {
@@ -130,32 +147,75 @@ export default function ItemsPage() {
     }
   }, [canDeleteItems, canEditItems, loadItems]);
 
+  const loadPopularItems = useCallback(async () => {
+    if (!canViewHistory) {
+      setPopularError("Bạn cần quyền xem lịch sử để xem Hương liệu phổ biến");
+      setPopularLoaded(true);
+      return;
+    }
+
+    setPopularLoading(true);
+    setPopularError("");
+    try {
+      const data = await api.get<DisplayItem[]>(
+        `/items/popular?limit=${POPULAR_ITEMS_LIMIT}&categoryCodes=${POPULAR_CATEGORY_CODES.join(",")}`
+      );
+      setPopularItems(data);
+      setPopularLoaded(true);
+    } catch (e) {
+      setPopularError(e instanceof ApiError ? e.message : "Không thể tải Hương liệu phổ biến");
+    } finally {
+      setPopularLoading(false);
+    }
+  }, [canViewHistory]);
+
+  useEffect(() => {
+    if (activeTab !== "popular" || popularLoaded || popularLoading) return;
+    loadPopularItems();
+  }, [activeTab, loadPopularItems, popularLoaded, popularLoading]);
+
   const activeTabConfig = ITEM_TABS.find((tab) => tab.key === activeTab) ?? ITEM_TABS[0];
-  const tabItems = items.filter((item) =>
-    activeTabConfig.categoryCodes.includes(item.category.code.toUpperCase())
-  );
+  const tabItems: DisplayItem[] = activeTab === "popular"
+    ? popularItems
+    : items.filter((item) =>
+        activeTabConfig.categoryCodes?.includes(item.category.code.toUpperCase())
+      );
   const tabCounts = ITEM_TABS.reduce<Record<ItemTab, number>>((counts, tab) => {
-    counts[tab.key] = items.filter((item) =>
-      tab.categoryCodes.includes(item.category.code.toUpperCase())
-    ).length;
+    counts[tab.key] = tab.key === "popular"
+      ? popularItems.length
+      : items.filter((item) =>
+          tab.categoryCodes?.includes(item.category.code.toUpperCase())
+        ).length;
     return counts;
-  }, { ingredients: 0, invoices: 0 });
+  }, { ingredients: 0, invoices: 0, popular: 0 });
   const filtered = tabItems.filter(
     (i) => i.name.toLowerCase().includes(search.toLowerCase()) ||
            i.code.toLowerCase().includes(search.toLowerCase())
   );
-  const sortedItems = [...filtered].sort((a, b) => {
+  const sortedItems = activeTab === "popular" ? filtered : [...filtered].sort((a, b) => {
     const direction = sort.direction === "asc" ? 1 : -1;
     if (sort.key === "qty") {
       return (a.qty - b.qty) * direction;
     }
     return a[sort.key].localeCompare(b[sort.key], "vi", { numeric: true, sensitivity: "base" }) * direction;
   });
+  const createCategoryCodes = activeTabConfig.categoryCodes ?? [];
+  const createCategoriesForActiveTab = categories.filter((category) =>
+    createCategoryCodes.includes(category.code.toUpperCase())
+  );
+  const canCreateInActiveTab = activeTab !== "popular" && canCreateItems && createCategoriesForActiveTab.length > 0;
+  const modalCategories = modal.type === "edit" ? editCategories : createCategoriesForActiveTab;
 
   const openAdd = () => {
     const preferredCategoryCode = activeTab === "invoices" ? "H" : "N";
-    const defaultCategory = categories.find((category) => category.code === preferredCategoryCode) ?? categories[0];
-    setForm({ categoryId: defaultCategory?.id ?? 0, name: "", code: "", unit: "kg", qty: 0, unitPrice: 0, minQty: 5 });
+    const defaultCategory =
+      createCategoriesForActiveTab.find((category) => category.code === preferredCategoryCode) ??
+      createCategoriesForActiveTab[0];
+    if (!defaultCategory) {
+      setPageError("Bạn không có quyền thêm hàng hóa trong tab này");
+      return;
+    }
+    setForm({ categoryId: defaultCategory.id, name: "", code: "", unit: "kg", qty: 0, unitPrice: 0, minQty: 5 });
     setFormError("");
     setModal({ type: "add" });
   };
@@ -176,7 +236,7 @@ export default function ItemsPage() {
     if (modal.type === "add" && !hasMaxTwoDecimals(form.qty)) { setFormError("Số tồn đầu tiên chỉ được nhập tối đa 2 chữ số thập phân"); return; }
     if (!hasMaxTwoDecimals(form.minQty)) { setFormError("Ngưỡng cảnh báo chỉ được nhập tối đa 2 chữ số thập phân"); return; }
     if (modal.type === "add" || modal.type === "edit") {
-      const selectedCategory = categories.find((category) => category.id === form.categoryId);
+      const selectedCategory = modalCategories.find((category) => category.id === form.categoryId);
       const normalizedCode = form.code.trim().toUpperCase();
       if (selectedCategory && normalizedCode[0] !== selectedCategory.code.toUpperCase()) {
         setFormError(`Mã hàng phải bắt đầu bằng mã danh mục ${selectedCategory.code}, ví dụ ${selectedCategory.code}123`);
@@ -213,6 +273,7 @@ export default function ItemsPage() {
   };
 
   const toggleItemTransactions = async (item: ApiItem) => {
+    if (!canViewHistory) return;
     if (expandedItemId === item.id) {
       setExpandedItemId(null);
       return;
@@ -319,7 +380,7 @@ export default function ItemsPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        {canCreateItems && (
+        {canCreateInActiveTab && (
           <button
             type="button"
             onClick={openAdd}
@@ -331,8 +392,11 @@ export default function ItemsPage() {
       </div>
 
       {pageError && <div className="mb-4"><Alert type="error" message={pageError} /></div>}
+      {activeTab === "popular" && popularError && (
+        <div className="mb-4"><Alert type="error" message={popularError} /></div>
+      )}
 
-      {loading ? (
+      {loading || (activeTab === "popular" && popularLoading) ? (
         <div className="text-center text-gray-400 py-8 text-sm">Đang tải...</div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-[#e5e9f0] bg-white">
@@ -345,6 +409,9 @@ export default function ItemsPage() {
                   <th aria-sort={sort.key === "qty" ? (sort.direction === "asc" ? "ascending" : "descending") : "none"} className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">{renderSortableHeader("qty")}</th>
                   <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Đơn giá (₫)</th>
                   <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Thành tiền (₫)</th>
+                  {activeTab === "popular" && (
+                    <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Số giao dịch</th>
+                  )}
                   <th className="whitespace-nowrap border-b border-[#e5e9f0] bg-[#f8f9fc] px-3.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-[#8892a4]">Thao tác</th>
                 </tr>
               </thead>
@@ -359,13 +426,16 @@ export default function ItemsPage() {
                   return (
                     <Fragment key={i.id}>
                       <tr
-                        className="cursor-pointer border-b border-[#f0f2f6] transition-colors hover:bg-[#f6f9ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#185FA5]"
+                        className={[
+                          "border-b border-[#f0f2f6] transition-colors hover:bg-[#f6f9ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#185FA5]",
+                          canViewHistory ? "cursor-pointer" : "",
+                        ].join(" ")}
                         onClick={() => toggleItemTransactions(i)}
                         onKeyDown={(event) => handleItemRowKeyDown(event, i)}
-                        tabIndex={0}
-                        role="button"
-                        aria-expanded={expanded}
-                        aria-label={`Xem 5 giao dịch gần nhất của ${i.code} - ${i.name}`}
+                        tabIndex={canViewHistory ? 0 : undefined}
+                        role={canViewHistory ? "button" : undefined}
+                        aria-expanded={canViewHistory ? expanded : undefined}
+                        aria-label={canViewHistory ? `Xem 5 giao dịch gần nhất của ${i.code} - ${i.name}` : undefined}
                       >
                         <td className="px-3.5 py-2.5 align-middle">
                           <Badge variant={i.category.code} className="font-bold tracking-wide">{i.code}</Badge>
@@ -381,6 +451,13 @@ export default function ItemsPage() {
                         </td>
                         <td className="px-3.5 py-2.5 align-middle font-medium text-[#374151]">{fmtCurrency(i.unitPrice)}</td>
                         <td className="px-3.5 py-2.5 align-middle font-bold text-[#1a1a2e]">{fmtCurrency(i.qty * i.unitPrice)}</td>
+                        {activeTab === "popular" && (
+                          <td className="px-3.5 py-2.5 align-middle">
+                            <span className="inline-flex rounded-full bg-[#eef3fb] px-2.5 py-1 text-xs font-bold text-[#185FA5]">
+                              {i.transactionCount ?? 0}
+                            </span>
+                          </td>
+                        )}
                         <td className="px-3.5 py-2.5 align-middle">
                           <div className="flex flex-wrap gap-1 whitespace-nowrap">
                             <button
@@ -431,7 +508,7 @@ export default function ItemsPage() {
                       </tr>
                       {expanded && (
                         <tr>
-                          <td colSpan={6} className="border-b border-[#f0f2f6] bg-[#f8f9fc] px-3.5 py-3">
+                          <td colSpan={activeTab === "popular" ? 7 : 6} className="border-b border-[#f0f2f6] bg-[#f8f9fc] px-3.5 py-3">
                             <div className="mb-2 text-xs font-semibold text-[#555]">5 giao dịch gần nhất</div>
                             {recentLoadingId === i.id ? (
                               <div className="text-sm text-[#8892a4]">Đang tải giao dịch...</div>
@@ -527,7 +604,7 @@ export default function ItemsPage() {
                 required
               >
                 <option value={0}>-- Chọn danh mục --</option>
-                {categories.map((c) => <option key={c.id} value={c.id}>{getCategoryLabel(c)}</option>)}
+                {modalCategories.map((c) => <option key={c.id} value={c.id}>{getCategoryLabel(c)}</option>)}
               </select>
             </div>
             <div className="sm:col-span-2">
