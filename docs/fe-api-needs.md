@@ -13,7 +13,7 @@ Base URL: `NEXT_PUBLIC_API_URL`, mặc định local `http://localhost:4000/api/
 - History xuất nhập gọi `types=in,out`; history điều chỉnh gọi `type=adj`.
 - Date filter history gửi nguyên ngày: `from=T00:00:00.000`, `to=T23:59:59.999`.
 - `POST /transactions` yêu cầu `note` cho nhập, xuất, điều chỉnh.
-- Item contract có `numOfTrans`; FE không dùng `transactionCount`.
+- Item contract có `numOfTrans`; FE có nút admin để gọi recompute khi cần đồng bộ lại counter.
 - Tab popular là `Hương liệu phổ biến (T30)`, lấy top 30 theo `numOfTrans`.
 
 ## Endpoint FE đang dùng
@@ -29,7 +29,7 @@ Base URL: `NEXT_PUBLIC_API_URL`, mặc định local `http://localhost:4000/api/
 | Items | `GET /items?search={term}&limit=20` | Dropdown item | Dùng cho search server-side khi list lớn. |
 | Items | `GET /items?code={code}` | QR/code lookup | Fallback khi scan QR không có trong list đã load. |
 | Items | `GET /items/popular?limit=30&categoryCodes=R,N` | Tab popular | Response `ApiItem[]`; cột số giao dịch dùng `numOfTrans`. |
-| Items | `POST /items/recompute-transaction-counts` | Admin Hàng hóa | Response `{ totalItems, updatedItems }`. |
+| Items | `POST /items/recompute-transaction-counts` | Admin Hàng hóa | Admin-only; response `{ totalItems, updatedItems }`. |
 | Items | `GET /items/categories?action=create` | Form thêm item | Chỉ category user được tạo. |
 | Items | `GET /items/categories?action=edit` | Form sửa item | Chỉ category user được sửa. |
 | Items | `GET /items/categories?action=delete` | Quyền xóa item | Dùng để quyết định action delete theo category. |
@@ -67,7 +67,26 @@ FE kỳ vọng item có tối thiểu:
 }
 ```
 
-`numOfTrans` là counter cache do BE cập nhật khi tạo/reverse transaction. FE dùng field này cho tab popular và cột “Số giao dịch”; không dùng `transactionCount`.
+`numOfTrans` là counter cache do BE cập nhật khi tạo/reverse transaction. FE đọc field này cho tab popular và cột “Số giao dịch”; không dùng `transactionCount`.
+
+### Recompute `numOfTrans`
+
+Admin có thể gọi:
+
+```http
+POST /api/v1/items/recompute-transaction-counts
+```
+
+Response:
+
+```ts
+{
+  totalItems: number;
+  updatedItems: number;
+}
+```
+
+Endpoint đồng bộ `items.num_of_trans` từ `COUNT(*) FROM transactions GROUP BY itemId`. Nó không tạo transaction mới, không đổi `items.qty`, không sửa/xóa history, không phụ thuộc category access. BE check trực tiếp `roleCode === "admin"` và dùng advisory lock chung với create/reverse transaction. DB runtime phải đã apply migration thêm cột `items.num_of_trans`.
 
 ### `POST /transactions`
 
