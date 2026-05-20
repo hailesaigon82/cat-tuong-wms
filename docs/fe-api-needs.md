@@ -29,7 +29,7 @@ Base URL: `NEXT_PUBLIC_API_URL`, mặc định local `http://localhost:4000/api/
 | Items | `GET /items?search={term}&limit=20` | Dropdown item | Dùng cho search server-side khi list lớn. |
 | Items | `GET /items?code={code}` | QR/code lookup | Fallback khi scan QR không có trong list đã load. |
 | Items | `GET /items/popular?limit=30&categoryCodes=R,N` | Tab popular | Response `ApiItem[]`; cột số giao dịch dùng `numOfTrans`. |
-| Items | `POST /items/recompute-transaction-counts` | Admin Hàng hóa | Admin-only; response `{ totalItems, updatedItems }`. |
+| Items | `POST /items/recompute-transaction-counts` | User `hai` trong form Hàng hóa | BE admin-only; FE chỉ hiện nút cho username `hai`; response `{ totalItems, updatedItems }`. |
 | Items | `GET /items/categories?action=create` | Form thêm item | Chỉ category user được tạo. |
 | Items | `GET /items/categories?action=edit` | Form sửa item | Chỉ category user được sửa. |
 | Items | `GET /items/categories?action=delete` | Quyền xóa item | Dùng để quyết định action delete theo category. |
@@ -71,7 +71,7 @@ FE kỳ vọng item có tối thiểu:
 
 ### Recompute `numOfTrans`
 
-Admin có thể gọi:
+FE chỉ hiển thị nút này cho user có `username === "hai"`. BE vẫn enforce quyền bằng `roleCode === "admin"`.
 
 ```http
 POST /api/v1/items/recompute-transaction-counts

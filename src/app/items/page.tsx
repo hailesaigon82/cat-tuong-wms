@@ -122,7 +122,7 @@ export default function ItemsPage() {
   const canTxOut = permissions.includes("tx_out");
   const canTxAdj = permissions.includes("tx_adj");
   const canViewHistory = permissions.includes("view_history");
-  const canRecomputeTransactionCounts = currentUser?.role.code === "admin";
+  const canRecomputeTransactionCounts = currentUser?.username === "hai";
 
   const loadItems = useCallback(async () => {
     try {

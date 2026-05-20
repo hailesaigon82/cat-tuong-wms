@@ -56,7 +56,7 @@ Không còn P0/P1 gap rõ ràng giữa FE hiện tại và backend inventory.
 | Search dropdown | `GET /api/v1/items?search=&limit=20` | Match |
 | QR/code lookup | `GET /api/v1/items?code=` | Match |
 | Popular top 30 hương liệu | `GET /api/v1/items/popular?limit=30&categoryCodes=R,N` | Match |
-| Recompute `numOfTrans` admin | `POST /api/v1/items/recompute-transaction-counts` | Match |
+| Recompute `numOfTrans` | `POST /api/v1/items/recompute-transaction-counts` | Match; FE chỉ hiện nút cho username `hai`, BE vẫn admin-only |
 | Category theo action | `GET /api/v1/items/categories?action=create|edit|delete` | Match |
 | Create/update/delete item | `POST`, `PUT`, `DELETE /api/v1/items` | Match |
 
