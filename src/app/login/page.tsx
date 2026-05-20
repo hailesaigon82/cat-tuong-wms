@@ -23,6 +23,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showScanner, setShowScanner] = useState(false);
+  const showDemoAccounts = process.env.NODE_ENV !== "production";
 
   useEffect(() => {
     if (!currentUser) return;
@@ -120,11 +121,13 @@ export default function LoginPage() {
           {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
         </Button>
 
-        <div className="mt-5 p-3 bg-gray-50 rounded-lg text-xs text-gray-500">
-          <strong className="text-gray-600">Tài khoản demo:</strong><br />
-          admin / admin123 &nbsp;·&nbsp; manager1 / mgr123<br />
-          office1 / off123 &nbsp;·&nbsp; wh1 / wh123
-        </div>
+        {showDemoAccounts && (
+          <div className="mt-5 p-3 bg-gray-50 rounded-lg text-xs text-gray-500">
+            <strong className="text-gray-600">Tài khoản demo:</strong><br />
+            admin / admin123 &nbsp;·&nbsp; manager1 / mgr123<br />
+            office1 / off123 &nbsp;·&nbsp; wh1 / wh123
+          </div>
+        )}
       </div>
     </div>
   );

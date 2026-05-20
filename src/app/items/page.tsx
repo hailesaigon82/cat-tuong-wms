@@ -57,7 +57,11 @@ type ModalState =
 type SortKey = "code" | "name" | "qty";
 type SortDirection = "asc" | "desc";
 type ItemTab = "ingredients" | "invoices" | "popular";
-type DisplayItem = ApiItem & { transactionCount?: number };
+type DisplayItem = ApiItem;
+type RecomputeTransactionCountsResponse = {
+  totalItems: number;
+  updatedItems: number;
+};
 
 const SORT_LABEL: Record<SortKey, string> = {
   code: "Mã hàng",
@@ -82,9 +86,11 @@ export default function ItemsPage() {
   const [search, setSearch]         = useState("");
   const [loading, setLoading]       = useState(true);
   const [pageError, setPageError]   = useState("");
+  const [pageNotice, setPageNotice] = useState("");
   const [modal, setModal]           = useState<ModalState>({ type: "none" });
   const [formError, setFormError]   = useState("");
   const [saving, setSaving]         = useState(false);
+  const [recomputingCounts, setRecomputingCounts] = useState(false);
   const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
   const [recentTxsByItem, setRecentTxsByItem] = useState<Record<number, ApiTransaction[]>>({});
   const [recentLoadingId, setRecentLoadingId] = useState<number | null>(null);
@@ -109,6 +115,7 @@ export default function ItemsPage() {
   const canTxOut = permissions.includes("tx_out");
   const canTxAdj = permissions.includes("tx_adj");
   const canViewHistory = permissions.includes("view_history");
+  const canRecomputeTransactionCounts = currentUser?.role.code === "admin";
 
   const loadItems = useCallback(async () => {
     try {
@@ -258,6 +265,11 @@ export default function ItemsPage() {
         await api.post("/items", { ...form, code: form.code.trim().toUpperCase() });
       }
       await loadItems();
+      setPopularLoaded(false);
+      setPopularItems([]);
+      if (activeTab === "popular") {
+        await loadPopularItems();
+      }
       setModal({ type: "none" });
     } catch (e) {
       setFormError(e instanceof ApiError ? e.message : "Lưu thất bại");
@@ -268,8 +280,37 @@ export default function ItemsPage() {
 
   const handleDelete = async (id: number, code: string) => {
     if (!confirm(`Xóa hàng hóa ${code}?`)) return;
-    try { await api.delete(`/items/${id}`); await loadItems(); }
+    try {
+      await api.delete(`/items/${id}`);
+      await loadItems();
+      setPopularLoaded(false);
+      setPopularItems([]);
+      if (activeTab === "popular") {
+        await loadPopularItems();
+      }
+    }
     catch (e) { alert(e instanceof ApiError ? e.message : "Xóa thất bại"); }
+  };
+
+  const recomputeTransactionCounts = async () => {
+    if (!confirm("Đồng bộ lại số giao dịch của tất cả hàng hóa?")) return;
+    setRecomputingCounts(true);
+    setPageError("");
+    setPageNotice("");
+    try {
+      const res = await api.post<RecomputeTransactionCountsResponse>("/items/recompute-transaction-counts");
+      await loadItems();
+      setPopularLoaded(false);
+      setPopularItems([]);
+      if (activeTab === "popular") {
+        await loadPopularItems();
+      }
+      setPageNotice(`Đã đồng bộ số giao dịch: cập nhật ${res.updatedItems}/${res.totalItems} hàng hóa`);
+    } catch (e) {
+      setPageError(e instanceof ApiError ? e.message : "Đồng bộ số giao dịch thất bại");
+    } finally {
+      setRecomputingCounts(false);
+    }
   };
 
   const toggleItemTransactions = async (item: ApiItem) => {
@@ -381,9 +422,20 @@ export default function ItemsPage() {
             ＋ Thêm hàng
           </button>
         )}
+        {canRecomputeTransactionCounts && (
+          <button
+            type="button"
+            onClick={recomputeTransactionCounts}
+            disabled={recomputingCounts}
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-[#dde1ea] bg-white px-3.5 py-2 text-[13px] font-semibold text-[#555] transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {recomputingCounts ? "Đang đồng bộ..." : "Đồng bộ số giao dịch"}
+          </button>
+        )}
       </div>
 
       {pageError && <div className="mb-4"><Alert type="error" message={pageError} /></div>}
+      {pageNotice && <div className="mb-4"><Alert type="success" message={pageNotice} /></div>}
       {activeTab === "popular" && popularError && (
         <div className="mb-4"><Alert type="error" message={popularError} /></div>
       )}
@@ -446,7 +498,7 @@ export default function ItemsPage() {
                         {activeTab === "popular" && (
                           <td className="px-3.5 py-2.5 align-middle">
                             <span className="inline-flex rounded-full bg-[#eef3fb] px-2.5 py-1 text-xs font-bold text-[#185FA5]">
-                              {i.transactionCount ?? 0}
+                              {i.numOfTrans}
                             </span>
                           </td>
                         )}

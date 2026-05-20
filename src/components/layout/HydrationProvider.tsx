@@ -2,6 +2,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store";
+import { tokenStorage } from "@/lib/api";
 
 export function HydrationProvider({ children }: { children: React.ReactNode }) {
   const hydrate = useAppStore((s) => s.hydrate);
@@ -16,7 +17,7 @@ export function HydrationProvider({ children }: { children: React.ReactNode }) {
     didBootstrap.current = true;
 
     // Nếu không có token → không cần hydrate, render ngay
-    const token = localStorage.getItem("wms_access_token");
+    const token = tokenStorage.getAccess();
     if (!token) {
       useAppStore.setState({ currentUser: null });
       setReady(true);

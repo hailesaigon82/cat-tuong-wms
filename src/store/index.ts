@@ -33,7 +33,7 @@ export const useAppStore = create<AuthStore>()(
           const res = await api.post<LoginResponse>(
             "/auth/login",
             { username: username.trim().toLowerCase(), password },
-            { skipRefresh: true }
+            { skipAuth: true, skipRefresh: true }
           );
           tokenStorage.set(res.accessToken, res.refreshToken);
           set({ currentUser: res.user, isLoading: false, error: null });

@@ -41,8 +41,8 @@ function getStockAfter(tx: ApiTransaction) {
 
 function buildDateQuery(fromDate: string, toDate: string) {
   const params = new URLSearchParams();
-  if (fromDate) params.set("from", fromDate);
-  if (toDate) params.set("to", toDate);
+  if (fromDate) params.set("from", `${fromDate}T00:00:00.000`);
+  if (toDate) params.set("to", `${toDate}T23:59:59.999`);
   const query = params.toString();
   return query ? `&${query}` : "";
 }

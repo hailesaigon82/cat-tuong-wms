@@ -45,6 +45,7 @@ export interface ApiItem {
   qty: number;
   unitPrice: number;
   minQty: number;
+  numOfTrans: number;
   isActive: boolean;
   category: ApiCategory;
   createdAt: string;

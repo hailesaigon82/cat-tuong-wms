@@ -1,20 +1,43 @@
 // src/lib/api.ts
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
 const DEFAULT_TIMEOUT_MS = 30000;
+const ACCESS_TOKEN_KEY = "wms_access_token";
+const REFRESH_TOKEN_KEY = "wms_refresh_token";
+
+function clearLegacyLocalStorageTokens() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
 
 // ─── Token storage ────────────────────────────────────────────────────────
 export const tokenStorage = {
-  getAccess: (): string | null =>
-    typeof window !== "undefined" ? localStorage.getItem("wms_access_token") : null,
-  getRefresh: (): string | null =>
-    typeof window !== "undefined" ? localStorage.getItem("wms_refresh_token") : null,
+  getAccess: (): string | null => {
+    if (typeof window === "undefined") return null;
+    clearLegacyLocalStorageTokens();
+    return sessionStorage.getItem(ACCESS_TOKEN_KEY);
+  },
+  getRefresh: (): string | null => {
+    if (typeof window === "undefined") return null;
+    clearLegacyLocalStorageTokens();
+    return sessionStorage.getItem(REFRESH_TOKEN_KEY);
+  },
+  setAccess: (accessToken: string) => {
+    if (typeof window === "undefined") return;
+    clearLegacyLocalStorageTokens();
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  },
   set: (accessToken: string, refreshToken: string) => {
-    localStorage.setItem("wms_access_token", accessToken);
-    localStorage.setItem("wms_refresh_token", refreshToken);
+    if (typeof window === "undefined") return;
+    clearLegacyLocalStorageTokens();
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    sessionStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
   },
   clear: () => {
-    localStorage.removeItem("wms_access_token");
-    localStorage.removeItem("wms_refresh_token");
+    if (typeof window === "undefined") return;
+    clearLegacyLocalStorageTokens();
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
   },
 };
 
@@ -80,7 +103,7 @@ async function refreshAccessToken(): Promise<string | null> {
       return null;
     }
     const data = await res.json();
-    localStorage.setItem("wms_access_token", data.accessToken);
+    tokenStorage.setAccess(data.accessToken);
     refreshQueue.forEach((cb) => cb(data.accessToken));
     refreshQueue = [];
     return data.accessToken;
