@@ -48,6 +48,13 @@ function formatQty(value: number) {
   }).format(value);
 }
 
+function formatCount(value: number) {
+  return new Intl.NumberFormat("vi-VN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 type ModalState =
   | { type: "none" }
   | { type: "add" }
@@ -498,7 +505,7 @@ export default function ItemsPage() {
                         {activeTab === "popular" && (
                           <td className="px-3.5 py-2.5 align-middle">
                             <span className="inline-flex rounded-full bg-[#eef3fb] px-2.5 py-1 text-xs font-bold text-[#185FA5]">
-                              {i.numOfTrans}
+                              {formatCount(i.numOfTrans)}
                             </span>
                           </td>
                         )}
