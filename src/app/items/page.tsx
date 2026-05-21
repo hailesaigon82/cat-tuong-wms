@@ -314,7 +314,11 @@ export default function ItemsPage() {
       }
       setPageNotice(`Đã đồng bộ số giao dịch: cập nhật ${res.updatedItems}/${res.totalItems} hàng hóa`);
     } catch (e) {
-      setPageError(e instanceof ApiError ? e.message : "Đồng bộ số giao dịch thất bại");
+      if (e instanceof ApiError && e.status === 404) {
+        setPageError("Backend đang chạy chưa có route đồng bộ số giao dịch. Cần deploy/restart BE bản có POST /api/v1/items/recompute-transaction-counts.");
+      } else {
+        setPageError(e instanceof ApiError ? e.message : "Đồng bộ số giao dịch thất bại");
+      }
     } finally {
       setRecomputingCounts(false);
     }
