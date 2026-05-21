@@ -378,6 +378,10 @@ export default function ItemsPage() {
   };
 
   const renderSortableHeader = (key: SortKey) => {
+    if (activeTab === "popular") {
+      return <span>{SORT_LABEL[key]}</span>;
+    }
+
     const active = sort.key === key;
     return (
       <button
