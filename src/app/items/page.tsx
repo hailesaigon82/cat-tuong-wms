@@ -316,6 +316,10 @@ export default function ItemsPage() {
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
         setPageError("Backend đang chạy chưa có route đồng bộ số giao dịch. Cần deploy/restart BE bản có POST /api/v1/items/recompute-transaction-counts.");
+      } else if (e instanceof ApiError && e.status === 403) {
+        setPageError("Bạn không có quyền đồng bộ số giao dịch. Backend chỉ cho phép user role admin gọi chức năng này.");
+      } else if (e instanceof ApiError && e.status >= 500) {
+        setPageError("Đồng bộ số giao dịch thất bại ở backend. Vui lòng kiểm tra BE đã apply migration thêm cột items.num_of_trans và server đang chạy đúng bản mới.");
       } else {
         setPageError(e instanceof ApiError ? e.message : "Đồng bộ số giao dịch thất bại");
       }

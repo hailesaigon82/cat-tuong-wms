@@ -88,6 +88,12 @@ Response:
 
 Endpoint đồng bộ `items.num_of_trans` từ `COUNT(*) FROM transactions GROUP BY itemId`. Nó không tạo transaction mới, không đổi `items.qty`, không sửa/xóa history, không phụ thuộc category access. BE check trực tiếp `roleCode === "admin"` và dùng advisory lock chung với create/reverse transaction. DB runtime phải đã apply migration thêm cột `items.num_of_trans`.
 
+FE hiển thị lỗi riêng cho recompute:
+
+- `403`: user đang đăng nhập không có role admin ở BE.
+- `404`: BE runtime chưa có route hoặc chưa restart/deploy bản mới.
+- `5xx`: ưu tiên kiểm tra migration `items.num_of_trans` và version BE đang chạy.
+
 ### `POST /transactions`
 
 ```ts
