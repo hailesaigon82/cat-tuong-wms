@@ -6,7 +6,7 @@ import { useAppStore, ROLE_NAMES } from "@/store";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api";
 import { Alert, Button, FormGroup, Input, Modal } from "@/components/ui";
-import { ChevronDown, KeyRound, X } from "lucide-react";
+import { ChevronDown, KeyRound, Settings, X } from "lucide-react";
 
 type NavItem =
   | { path: string; label: string; icon: string; permission: string; permissions?: never }
@@ -58,6 +58,11 @@ export function Sidebar({ onClose }: SidebarProps) {
     setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
     setPasswordError("");
     setShowPasswordModal(true);
+  };
+
+  const openSettings = () => {
+    setUserMenuOpen(false);
+    navigate("/settings");
   };
 
   const submitChangePassword = async () => {
@@ -133,6 +138,16 @@ export function Sidebar({ onClose }: SidebarProps) {
 
         {userMenuOpen && (
           <div className="absolute left-3 right-3 top-[calc(100%-4px)] z-20 rounded-lg border border-white/10 bg-[#24243d] py-1 shadow-xl">
+            {currentUser.role.code === "admin" && (
+              <button
+                type="button"
+                onClick={openSettings}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-200 transition-colors hover:bg-white/10"
+              >
+                <Settings size={15} />
+                Cài đặt
+              </button>
+            )}
             <button
               type="button"
               onClick={openPasswordModal}

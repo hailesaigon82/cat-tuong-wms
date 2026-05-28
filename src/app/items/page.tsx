@@ -8,6 +8,7 @@ import { Button, Badge, Modal, Alert } from "@/components/ui";
 import { QRGenerator } from "@/components/qr/QRGenerator";
 import { api, ApiError } from "@/lib/api";
 import { fmtCurrency } from "@/lib/utils";
+import { formatStockQty, isStockHidden, stockSortValue } from "@/lib/stock";
 import type { ApiItem, ApiCategory, ApiTransaction, TransactionListResponse } from "@/types/api";
 
 const TYPE_LABEL: Record<string, string> = { in: "Nhập kho", out: "Xuất kho", adj: "Điều chỉnh" };
@@ -137,7 +138,11 @@ export default function ItemsPage() {
 
   useEffect(() => {
     loadItems();
-    api.get<ApiCategory[]>("/items/categories?action=create").then(setCategories).catch(() => {});
+    if (canCreateItems) {
+      api.get<ApiCategory[]>("/items/categories?action=create").then(setCategories).catch(() => {});
+    } else {
+      setCategories([]);
+    }
     if (canEditItems) {
       api.get<ApiCategory[]>("/items/categories?action=edit")
         .then((data) => {
@@ -159,7 +164,7 @@ export default function ItemsPage() {
     } else {
       setDeleteCategoryIds(new Set());
     }
-  }, [canDeleteItems, canEditItems, loadItems]);
+  }, [canCreateItems, canDeleteItems, canEditItems, loadItems]);
 
   const loadPopularItems = useCallback(async () => {
     if (!canViewHistory) {
@@ -209,7 +214,7 @@ export default function ItemsPage() {
   const sortedItems = activeTab === "popular" ? filtered : [...filtered].sort((a, b) => {
     const direction = sort.direction === "asc" ? 1 : -1;
     if (sort.key === "qty") {
-      return (a.qty - b.qty) * direction;
+      return (stockSortValue(a.qty, sort.direction) - stockSortValue(b.qty, sort.direction)) * direction;
     }
     return a[sort.key].localeCompare(b[sort.key], "vi", { numeric: true, sensitivity: "base" }) * direction;
   });
@@ -235,7 +240,7 @@ export default function ItemsPage() {
   };
 
   const openEdit = (item: ApiItem) => {
-    setForm({ categoryId: item.categoryId, name: item.name, code: item.code, unit: item.unit, qty: item.qty, unitPrice: item.unitPrice, minQty: item.minQty });
+    setForm({ categoryId: item.categoryId, name: item.name, code: item.code, unit: item.unit, qty: item.qty ?? 0, unitPrice: item.unitPrice, minQty: item.minQty ?? 0 });
     setFormError("");
     setModal({ type: "edit", item });
   };
@@ -480,7 +485,8 @@ export default function ItemsPage() {
               </thead>
               <tbody>
                 {sortedItems.map((i) => {
-                  const low = i.qty < i.minQty;
+                  const hiddenStock = isStockHidden(i);
+                  const low = !hiddenStock && i.qty !== null && i.minQty !== null && i.qty < i.minQty;
                   const expanded = expandedItemId === i.id;
                   const recentTxs = recentTxsByItem[i.id] ?? [];
                   const recentError = recentErrorByItem[i.id];
@@ -509,11 +515,11 @@ export default function ItemsPage() {
                         </td>
                         <td className="px-3.5 py-2.5 align-middle">
                           <span className={low ? "font-bold text-[#c0392b]" : "font-semibold text-[#1a1a2e]"}>
-                            {formatQty(i.qty)} {i.unit}{low ? " ⚠" : ""}
+                            {formatStockQty(i.qty, i.unit, hiddenStock)}{low ? " ⚠" : ""}
                           </span>
                         </td>
                         <td className="px-3.5 py-2.5 align-middle font-medium text-[#374151]">{fmtCurrency(i.unitPrice)}</td>
-                        <td className="px-3.5 py-2.5 align-middle font-bold text-[#1a1a2e]">{fmtCurrency(i.qty * i.unitPrice)}</td>
+                        <td className="px-3.5 py-2.5 align-middle font-bold text-[#1a1a2e]">{hiddenStock || i.qty === null ? "NA" : fmtCurrency(i.qty * i.unitPrice)}</td>
                         {activeTab === "popular" && (
                           <td className="px-3.5 py-2.5 align-middle">
                             <span className="inline-flex rounded-full bg-[#eef3fb] px-2.5 py-1 text-xs font-bold text-[#185FA5]">

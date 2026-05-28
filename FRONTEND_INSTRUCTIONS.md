@@ -11,7 +11,7 @@ Treat this as an internal warehouse operations tool, not a marketing website. Pr
 - Next.js 16 App Router with TypeScript.
 - Tailwind CSS for styling.
 - Zustand for auth state.
-- Browser `localStorage` for access and refresh tokens.
+- Browser `sessionStorage` for access and refresh tokens; legacy `localStorage` token keys are cleared.
 - `jsQR` for QR scanning.
 - `qrcode` for QR generation.
 - `lucide-react` for icons.
@@ -30,7 +30,7 @@ Treat this as an internal warehouse operations tool, not a marketing website. Pr
 
 ## Auth and API rules
 
-- Use `api.get`, `api.post`, `api.put`, and `api.delete` from `src/lib/api.ts` for backend calls.
+- Use `api.get`, `api.post`, `api.put`, `api.patch`, and `api.delete` from `src/lib/api.ts` for backend calls.
 - Do not call `fetch` directly from pages or components unless there is a specific reason.
 - Login uses `/auth/login` with `skipRefresh: true`.
 - Session restore uses `/auth/me` from `useAppStore().hydrate()`.
@@ -78,13 +78,15 @@ Category access is backend-driven through `role_category_access`. If the backend
 - Validate obvious required fields before sending requests.
 - Let backend validation remain authoritative.
 - After create/update/delete or stock transactions, refresh the affected list or dashboard data.
-- Preserve pagination behavior for transaction history at 20 rows per page unless the backend contract changes.
+- Preserve pagination behavior for transaction history at 50 rows per page unless the backend contract changes.
 - For stock operations, support item selection by QR scan and by manual selection/search when available.
+- Stock fields can be masked for warehouse users. If `stockHidden === true` or a stock value is `null`, render `NA` instead of inferring a numeric value.
 
 ## Development workflow
 
 - Run `npm run build` before considering frontend changes complete.
 - Run `npm run lint` when linting is configured and usable.
+- When changing frontend behavior, update the relevant FE documents in `FRONTEND_INSTRUCTIONS.md` or `docs/` in the same work session.
 - Keep edits scoped to the affected screen, shared component, type, or API helper.
 - Do not rewrite auth or layout foundations unless the task specifically requires it.
 - Do not modify `.env.local` values unless explicitly requested.

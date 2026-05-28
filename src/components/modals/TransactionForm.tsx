@@ -6,6 +6,7 @@ import { Alert, Badge } from "@/components/ui";
 import { QRScanner } from "@/components/qr/QRScanner";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { formatStockQty, isStockHidden } from "@/lib/stock";
 import { useAppStore } from "@/store";
 import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, Minus, Package, Plus, QrCode } from "lucide-react";
 import type { ApiItem, ApiTransaction, TransactionListResponse, TransactionType } from "@/types/api";
@@ -66,6 +67,10 @@ function getTransactionErrorMessage(error: unknown, txType: TransactionType) {
 }
 
 function getStockAfter(tx: ApiTransaction) {
+  if (tx.stockHidden) {
+    return null;
+  }
+
   if (tx.stockBefore === null || tx.stockBefore === undefined) {
     return null;
   }
@@ -356,9 +361,10 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
     if ((txType === "in" || txType === "out") && qtyNum <= 0) { showAlert({ msg: "Vui lòng nhập số lượng lớn hơn 0", type: "error" }); return; }
     if (txType === "adj" && qtyNum < 0) { showAlert({ msg: "Số tồn mới không được nhỏ hơn 0", type: "error" }); return; }
     if (!hasMaxTwoDecimals(qtyNum)) { showAlert({ msg: "Số lượng chỉ được nhập tối đa 2 chữ số thập phân", type: "error" }); return; }
-    if (txType === "out" && qtyNum > selectedItem.qty) {
+    const selectedStockHidden = isStockHidden(selectedItem);
+    if (txType === "out" && !selectedStockHidden && selectedItem.qty !== null && qtyNum > selectedItem.qty) {
       showAlert({
-        msg: `Số lượng xuất (${formatQty(qtyNum)} ${selectedItem.unit}) vượt quá tồn kho hiện tại (${formatQty(selectedItem.qty)} ${selectedItem.unit})`,
+        msg: `Số lượng xuất (${formatQty(qtyNum)} ${selectedItem.unit}) vượt quá tồn kho hiện tại (${formatStockQty(selectedItem.qty, selectedItem.unit, selectedStockHidden)})`,
         type: "error",
       });
       return;
@@ -367,19 +373,20 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
     setSaving(true); setAlert(null);
     try {
       const previousQty = selectedItem.qty;
-      const res = await api.post<ApiTransaction & { newQty: number }>("/transactions", {
+      const res = await api.post<ApiTransaction & { newQty: number | null }>("/transactions", {
         itemId: selectedItem.id, type: txType, qty: qtyNum,
         ...(note.trim() ? { note: note.trim() } : {}),
       });
+      const responseStockHidden = res.stockHidden === true || res.newQty === null;
       const successMessage = txType === "adj"
-        ? `✅ Điều chỉnh tồn kho thành công! Tồn kho cũ: ${formatQty(previousQty)} ${selectedItem.unit} => Tồn kho mới: ${formatQty(res.newQty)} ${selectedItem.unit}`
-        : `✅ ${CONFIG[txType].title} thành công! Số lượng ${txType === "in" ? "nhập" : "xuất"}: ${formatQty(qtyNum)} ${selectedItem.unit}. Tồn kho mới: ${formatQty(res.newQty)} ${selectedItem.unit}`;
+        ? `Điều chỉnh tồn kho thành công! Tồn kho cũ: ${formatStockQty(previousQty, selectedItem.unit, isStockHidden(selectedItem))} => Tồn kho mới: ${formatStockQty(res.newQty, selectedItem.unit, responseStockHidden)}`
+        : `${CONFIG[txType].title} thành công! Số lượng ${txType === "in" ? "nhập" : "xuất"}: ${formatQty(qtyNum)} ${selectedItem.unit}. Tồn kho mới: ${formatStockQty(res.newQty, selectedItem.unit, responseStockHidden)}`;
       showAlert({
         msg: successMessage,
         type: "success",
       });
       setLastReversibleTx(res);
-      const updatedItem = { ...selectedItem, qty: res.newQty };
+      const updatedItem = { ...selectedItem, qty: res.newQty, stockHidden: responseStockHidden };
       setSelectedItem(updatedItem);
       setItemSearch(getItemLabel(updatedItem));
       setItems((current) => current.map((item) => item.id === updatedItem.id ? updatedItem : item));
@@ -396,17 +403,18 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
     if (!lastReversibleTx || !selectedItem) return;
     setReversing(true);
     try {
-      const res = await api.post<{ transaction: ApiTransaction; newQty: number }>(
+      const res = await api.post<{ transaction: ApiTransaction; newQty: number | null }>(
         `/transactions/${lastReversibleTx.id}/reverse`
       );
-      const updatedItem = { ...selectedItem, qty: res.newQty };
+      const responseStockHidden = res.transaction?.stockHidden === true || res.newQty === null;
+      const updatedItem = { ...selectedItem, qty: res.newQty, stockHidden: responseStockHidden };
       setSelectedItem(updatedItem);
       setItemSearch(getItemLabel(updatedItem));
       setItems((current) => current.map((item) => item.id === updatedItem.id ? updatedItem : item));
       await loadRecentTransactions(updatedItem.id);
       setLastReversibleTx(null);
       showAlert({
-        msg: `Đã thu hồi giao dịch #${lastReversibleTx.id}. Tồn kho mới: ${formatQty(res.newQty)} ${updatedItem.unit}`,
+        msg: `Đã thu hồi giao dịch #${lastReversibleTx.id}. Tồn kho mới: ${formatStockQty(res.newQty, updatedItem.unit, responseStockHidden)}`,
         type: "success",
       });
     } catch (e) {
@@ -598,21 +606,23 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                 <span
                   className={cn(
                     "inline-flex items-center gap-2 rounded-xl border-2 border-[#d6dae4] bg-[#f7f8fb] px-3.5 py-2.5 text-sm font-extrabold text-[#475569] shadow-sm",
-                    selectedItem && selectedItem.qty > 0 && "border-[#059669] bg-[#d1fae5] text-[#064e3b] shadow-[0_8px_20px_-14px_rgba(5,150,105,0.9)]",
-                    selectedItem && selectedItem.qty <= 0 && "border-[#e11d48] bg-[#ffe4e6] text-[#881337] shadow-[0_8px_20px_-14px_rgba(225,29,72,0.9)]"
+                    selectedItem && !isStockHidden(selectedItem) && selectedItem.qty !== null && selectedItem.qty > 0 && "border-[#059669] bg-[#d1fae5] text-[#064e3b] shadow-[0_8px_20px_-14px_rgba(5,150,105,0.9)]",
+                    selectedItem && !isStockHidden(selectedItem) && selectedItem.qty !== null && selectedItem.qty <= 0 && "border-[#e11d48] bg-[#ffe4e6] text-[#881337] shadow-[0_8px_20px_-14px_rgba(225,29,72,0.9)]"
                   )}
                 >
                   <span
                     className={cn(
                       "h-2.5 w-2.5 rounded-full bg-[#94a3b8]",
-                      selectedItem && selectedItem.qty > 0 && "bg-[#059669]",
-                      selectedItem && selectedItem.qty <= 0 && "bg-[#e11d48]"
+                      selectedItem && !isStockHidden(selectedItem) && selectedItem.qty !== null && selectedItem.qty > 0 && "bg-[#059669]",
+                      selectedItem && !isStockHidden(selectedItem) && selectedItem.qty !== null && selectedItem.qty <= 0 && "bg-[#e11d48]"
                     )}
                     aria-hidden="true"
                   />
                   <span>
                     {selectedItem
-                      ? selectedItem.qty > 0
+                      ? isStockHidden(selectedItem)
+                        ? "Tồn kho: NA"
+                        : selectedItem.qty !== null && selectedItem.qty > 0
                         ? `Còn ${formatQty(selectedItem.qty)} ${selectedItem.unit} trong kho`
                         : "Hết hàng"
                       : "Chọn hàng hóa để xem tồn kho"}
@@ -822,10 +832,10 @@ export function TransactionForm({ type, allowTypeSwitch = false, autoOpenScanner
                               <div className={cn("self-center text-right font-mono text-sm font-semibold", TYPE_TEXT[tx.type])}>
                                 {recentTab === "stock"
                                   ? `${tx.type === "in" ? "+" : "-"}${formatQty(tx.qty)}`
-                                  : formatQty(tx.stockBefore)}
+                                  : formatStockQty(tx.stockBefore, undefined, tx.stockHidden)}
                               </div>
                               <div className="self-center text-right font-mono text-sm font-semibold text-[#0f172a]">
-                                {formatQty(stockAfter)}
+                                {formatStockQty(stockAfter, undefined, tx.stockHidden)}
                               </div>
                             </div>
                           );

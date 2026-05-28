@@ -1,46 +1,50 @@
 # Cát Tường WMS - FE/BE Gap Summary
 
-Tài liệu này là bản compact đối chiếu `docs/fe-api-needs.md` với `docs/be-api-inventory.md`.
+Bản compact các điểm FE cần theo dõi so với contract BE đang dùng. FE repo không lưu inventory chi tiết của BE; khi cần xác minh route/schema thật thì đọc trực tiếp BE repo.
 
-## Kết luận nhanh
+## Kết Luận Nhanh
 
-Không còn P0/P1 gap rõ ràng giữa FE hiện tại và backend inventory.
+Không có P0/P1 mismatch đã biết giữa FE hiện tại và BE.
 
 | Status | Count | Ý nghĩa |
 |---|---:|---|
-| Match | 30 | Contract đang khớp và FE có thể dùng trực tiếp. |
-| Partial | 2 | BE có phần lớn contract, nhưng UI hiện chưa phụ thuộc đầy đủ. |
-| Monitor | 4 | Chạy được hiện tại, cần theo dõi nếu nghiệp vụ/quyền mở rộng. |
-| Mismatch | 0 | Không còn lệch contract đã biết. |
-| Missing | 0 | Không có endpoint bắt buộc đang thiếu cho FE hiện tại. |
+| Match | 36 | Contract FE cần đã có và đang khớp. |
+| Partial | 1 | BE có endpoint/capability, nhưng FE chưa dùng hết. |
+| Monitor | 1 | Chạy được hiện tại, cần theo dõi nếu nghiệp vụ mở rộng. |
+| Tech debt | 1 | Không lệch contract nhưng còn hướng hardening. |
+| Workflow | 1 | Quy ước làm việc để tránh drift tài liệu. |
+| Mismatch | 0 | Không có lệch contract đã biết. |
+| Missing | 0 | Không thiếu endpoint FE bắt buộc. |
 
-## Gap còn đáng chú ý
+## Gap Hiện Tại
 
 | ID | Mức | Loại | Nội dung | Hướng xử lý |
 |---|---|---|---|---|
-| DASH-01 | P3 | Partial | BE có `GET /transactions/summary`, nhưng FE dashboard chưa render KPI đầy đủ. | Khi làm dashboard thật, dùng endpoint hiện có. |
-| HIST-04 | P3 | Partial | UI chưa có filter history theo `userId`/`search`; BE inventory chưa có hai query này. | Chỉ bổ sung nếu UI cần tra cứu nâng cao. |
-| TX-ACTION-CAT | P2 | Monitor | Transaction forms chọn item theo `GET /items`, tức đang dựa trên `canView` + permission transaction global. | Nếu quyền nhập/xuất/điều chỉnh tách theo category, cần API/field thể hiện quyền thao tác từng item/category. |
-| AUTH-SEC | P3 | Tech debt | FE token nằm trong `sessionStorage`, tốt hơn persistence của `localStorage` nhưng vẫn đọc được bởi JS. | Nếu cần harden security, cân nhắc HttpOnly cookie/session design. |
+| DASH-01 | P3 | Partial | BE có `GET /transactions/summary`, nhưng FE dashboard vẫn tối giản. | Khi làm KPI dashboard, dùng endpoint hiện có. |
+| TX-ACTION-CAT | P2 | Monitor | Transaction form chọn item qua `GET /items`, dựa vào `canView` + permission transaction global. | Nếu quyền transaction tách theo category, cần contract action theo item/category. |
+| AUTH-SEC | P3 | Tech debt | Token nằm trong `sessionStorage`; vẫn đọc được bởi JS nếu có XSS. | Cân nhắc HttpOnly cookie/session nếu cần hardening mạnh hơn. |
+| DOC-SYNC | P2 | Workflow | FE docs dễ drift nếu sửa UI nhưng không cập nhật tài liệu. | Đã thêm rule: khi đổi FE, cập nhật document FE liên quan trong cùng session. |
 
-## Các gap đã đóng
+## Gap Vừa Đóng
 
-| Trước đây | Trạng thái hiện tại |
+| Chủ đề | Trạng thái hiện tại |
 |---|---|
-| History dùng `limit=20` không đồng nhất | FE dùng `limit=50` cho cả xuất nhập và điều chỉnh. |
-| Form history chung nhưng type query chưa rõ | Xuất nhập dùng `types=in,out`; điều chỉnh dùng `type=adj`. |
-| `note` transaction còn optional/unclear | FE contract hiện là `note: string` cho nhập, xuất, điều chỉnh. |
-| Popular tab cần count từ toàn bộ transaction history | BE có `items.numOfTrans`; FE dùng `/items/popular` và không tự crawl history. |
-| FE còn dùng/fallback `transactionCount` | Đã bỏ; cột số giao dịch dùng `numOfTrans`. |
-| Category dropdown chưa action-specific | FE dùng `action=create/edit/delete` theo từng flow. |
-| Login request có thể dính refresh/auth interceptor | Login gọi với `{ skipAuth: true, skipRefresh: true }`. |
-| Token lưu persistent trong `localStorage` | FE chuyển sang `sessionStorage` và clear legacy localStorage keys. |
+| Setting Ẩn tồn kho | FE có màn admin **Cài đặt**, `GET /settings`, `PATCH /settings/hide-stock`, và render `NA` cho stock hidden/null. |
+| Nullable stock fields | `ApiItem.qty`, `ApiItem.minQty`, transaction `stockBefore`, `newQty` đã hỗ trợ `null`. |
+| History limit | FE dùng `limit=50` cho xuất/nhập và điều chỉnh. |
+| History type query | Xuất/nhập dùng `types=in,out`; điều chỉnh dùng `type=adj`. |
+| Transaction note | FE gửi `note` cho in/out/adj. |
+| Popular item count | FE dùng `items.numOfTrans` và `/items/popular`, không crawl history. |
+| Category dropdown | FE dùng `action=create/edit/delete`. |
+| Login auth interceptor | Login gọi `{ skipAuth: true, skipRefresh: true }`. |
+| Persistent token storage | FE chuyển từ `localStorage` sang `sessionStorage` và clear legacy keys. |
+| FE/BE type cleanup | `ApiCategory.description`, `ApiTransaction.user.username`, reverse `newQty`, và categories create permission call đã khớp BE hơn. |
 
-## Contract final FE đang phụ thuộc
+## Contract Map
 
 ### Auth
 
-| FE need | BE endpoint | Status |
+| FE cần | BE endpoint | Status |
 |---|---|---|
 | Login token + user + permissions + `allowedCategoryIds` | `POST /api/v1/auth/login` | Match |
 | Hydrate current user | `GET /api/v1/auth/me` | Match |
@@ -48,43 +52,41 @@ Không còn P0/P1 gap rõ ràng giữa FE hiện tại và backend inventory.
 | Logout current session | `POST /api/v1/auth/logout` | Match |
 | Change password | `POST /api/v1/auth/change-password` | Match |
 
+### Settings
+
+| FE cần | BE endpoint | Status |
+|---|---|---|
+| Đọc trạng thái Ẩn tồn kho | `GET /api/v1/settings` | Match |
+| Toggle Ẩn tồn kho | `PATCH /api/v1/settings/hide-stock` | Match |
+| Hiển thị stock hidden | Item/transaction response có `stockHidden` và stock `null` | Match |
+
 ### Items
 
-| FE need | BE endpoint | Status |
+| FE cần | BE endpoint | Status |
 |---|---|---|
-| Item list gồm `numOfTrans` | `GET /api/v1/items` | Match |
+| Item list có `numOfTrans` và nullable stock fields | `GET /api/v1/items` | Match |
 | Search dropdown | `GET /api/v1/items?search=&limit=20` | Match |
 | QR/code lookup | `GET /api/v1/items?code=` | Match |
 | Popular top 30 hương liệu | `GET /api/v1/items/popular?limit=30&categoryCodes=R,N` | Match |
-| Recompute `numOfTrans` | `POST /api/v1/items/recompute-transaction-counts` | Match; FE chỉ hiện nút cho username `hai`, BE vẫn admin-only |
-| Category theo action | `GET /api/v1/items/categories?action=create|edit|delete` | Match |
-| Create/update/delete item | `POST`, `PUT`, `DELETE /api/v1/items` | Match |
+| Recompute `numOfTrans` | `POST /api/v1/items/recompute-transaction-counts` | Match; FE chỉ hiện cho username `hai`, BE admin-only |
+| Category theo action | `GET /api/v1/items/categories?action=create\|edit\|delete` | Match |
+| Tạo/sửa/xóa item | `POST`, `PUT`, `DELETE /api/v1/items` | Match |
 
-### Transactions và History
+### Transactions Và History
 
-| FE need | BE endpoint | Status |
+| FE cần | BE endpoint | Status |
 |---|---|---|
-| Nhập kho | `POST /api/v1/transactions`, `type="in"` | Match |
-| Xuất kho | `POST /api/v1/transactions`, `type="out"` | Match |
-| Điều chỉnh | `POST /api/v1/transactions`, `type="adj"` | Match |
-| History xuất nhập | `GET /api/v1/transactions?limit=50&page=&types=in,out` | Match |
+| Tạo transaction in/out/adj | `POST /api/v1/transactions` | Match |
+| Nhận `newQty` đã mask | `POST /api/v1/transactions` response | Match |
+| Thu hồi giao dịch cuối | `POST /api/v1/transactions/:id/reverse` | Match |
+| History xuất/nhập | `GET /api/v1/transactions?limit=50&page=&types=in,out` | Match |
 | History điều chỉnh | `GET /api/v1/transactions?limit=50&page=&type=adj` | Match |
 | Date filter | `GET /api/v1/transactions?from=&to=` | Match |
-| Reverse transaction | `POST /api/v1/transactions/:id/reverse` | Available, FE chưa dùng |
 
 ### Users
 
-| FE need | BE endpoint | Status |
+| FE cần | BE endpoint | Status |
 |---|---|---|
 | User list | `GET /api/v1/users` | Match |
 | Role dropdown | `GET /api/v1/users/roles` | Match |
-| Create/update/delete user | `POST`, `PUT`, `DELETE /api/v1/users` | Match |
-
-## Backend API chưa dùng ở FE
-
-| API | Ghi chú |
-|---|---|
-| `GET /health`, `GET /health/db` | Dùng monitoring/deploy, không cần trong app FE. |
-| `POST /api/v1/auth/logout-all` | Có thể thêm UI “đăng xuất tất cả thiết bị” sau. |
-| `GET /api/v1/items/:id` | Chưa có item detail page. |
-| `POST /api/v1/transactions/:id/reverse` | BE có sẵn, FE chưa có UI reverse. |
+| Tạo/sửa/xóa user | `POST`, `PUT`, `DELETE /api/v1/users` | Match |

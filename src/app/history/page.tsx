@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge, Alert, Button } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
+import { formatStockQty } from "@/lib/stock";
 import type { ApiTransaction, TransactionListResponse } from "@/types/api";
 
 const TYPE_LABEL: Record<string, string> = { in: "Nhập kho", out: "Xuất kho", adj: "Điều chỉnh" };
@@ -33,6 +34,7 @@ function formatQty(value: number | null | undefined) {
 }
 
 function getStockAfter(tx: ApiTransaction) {
+  if (tx.stockHidden) return null;
   if (tx.stockBefore === null || tx.stockBefore === undefined) return null;
   if (tx.type === "in") return round2(tx.stockBefore + tx.qty);
   if (tx.type === "out") return round2(tx.stockBefore - tx.qty);
@@ -199,10 +201,10 @@ export default function HistoryPage() {
                       <div className={`text-right font-mono text-[13px] font-bold ${TYPE_TEXT[tx.type]}`}>
                         {activeTab === "stock"
                           ? `${tx.type === "in" ? "+" : "-"}${formatQty(tx.qty)}`
-                          : formatQty(tx.stockBefore)}
+                          : formatStockQty(tx.stockBefore, undefined, tx.stockHidden)}
                       </div>
                       <div className="text-right font-mono text-[13px] font-semibold text-[#1a1a2e]">
-                        {formatQty(stockAfter)}
+                        {formatStockQty(stockAfter, undefined, tx.stockHidden)}
                       </div>
                     </div>
                   );

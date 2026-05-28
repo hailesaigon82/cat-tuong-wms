@@ -1,55 +1,52 @@
 # Cát Tường WMS - FE API Contract
 
-Tài liệu này ghi lại phần frontend đang phụ thuộc vào backend. Chi tiết đầy đủ của backend nằm ở `docs/be-api-inventory.md`; file này chỉ giữ các contract FE cần biết để tránh lệch khi sửa UI.
+Bản compact các contract backend mà frontend đang phụ thuộc. FE repo không lưu inventory chi tiết của BE; khi cần kiểm tra handler/schema thật thì đọc trực tiếp BE repo.
 
 Base URL: `NEXT_PUBLIC_API_URL`, mặc định local `http://localhost:4000/api/v1`.
 
-## Snapshot hiện tại
+## Snapshot
 
-- Auth token lưu trong `sessionStorage`; FE xóa token legacy trong `localStorage`.
+- Token lưu trong `sessionStorage`; FE xóa key token legacy trong `localStorage`.
 - Login gọi `POST /auth/login` với `{ skipAuth: true, skipRefresh: true }`.
-- Demo accounts chỉ hiển thị khi `NODE_ENV !== "production"`.
-- History dùng phân trang `limit=50`.
-- History xuất nhập gọi `types=in,out`; history điều chỉnh gọi `type=adj`.
-- Date filter history gửi nguyên ngày: `from=T00:00:00.000`, `to=T23:59:59.999`.
-- `POST /transactions` yêu cầu `note` cho nhập, xuất, điều chỉnh.
-- Item contract có `numOfTrans`; FE có nút admin để gọi recompute khi cần đồng bộ lại counter.
-- Tab popular là `Hương liệu phổ biến (T30)`, lấy top 30 theo `numOfTrans`.
+- Component dùng `api.*`; không tự gọi `fetch` hoặc tự xử lý refresh token.
+- History dùng `limit=50`.
+- Tồn kho có thể bị mask. Nếu `stockHidden === true` hoặc giá trị tồn kho là `null`, FE render `NA`.
+- Màn admin **Cài đặt** điều khiển Ẩn tồn kho bằng `GET /settings` và `PATCH /settings/hide-stock`.
+- Category `description` và transaction `user.username` có thể vắng/null tùy endpoint; FE không phụ thuộc các field này để render nghiệp vụ chính.
 
-## Endpoint FE đang dùng
+## Endpoint FE Đang Dùng
 
-| Nhóm | Endpoint | Nơi dùng | Ghi chú FE |
-|---|---|---|---|
-| Auth | `POST /auth/login` | Login | Body `{ username, password }`; response cần token + user + permissions + `allowedCategoryIds`. |
-| Auth | `GET /auth/me` | Hydration | Reload current user bằng access token. |
-| Auth | `POST /auth/refresh` | API client | Refresh access token khi 401. |
-| Auth | `POST /auth/logout` | Sidebar logout | Body `{ refreshToken }`; FE chỉ cần success. |
-| Auth | `POST /auth/change-password` | User menu | Sau success FE logout local. |
-| Items | `GET /items` | Hàng hóa, transaction form | Response `ApiItem[]`, gồm `numOfTrans` và `category`. |
-| Items | `GET /items?search={term}&limit=20` | Dropdown item | Dùng cho search server-side khi list lớn. |
-| Items | `GET /items?code={code}` | QR/code lookup | Fallback khi scan QR không có trong list đã load. |
-| Items | `GET /items/popular?limit=30&categoryCodes=R,N` | Tab popular | Response `ApiItem[]`; cột số giao dịch dùng `numOfTrans`. |
-| Items | `POST /items/recompute-transaction-counts` | User `hai` trong form Hàng hóa | BE admin-only; FE chỉ hiện nút cho username `hai`; response `{ totalItems, updatedItems }`. |
-| Items | `GET /items/categories?action=create` | Form thêm item | Chỉ category user được tạo. |
-| Items | `GET /items/categories?action=edit` | Form sửa item | Chỉ category user được sửa. |
-| Items | `GET /items/categories?action=delete` | Quyền xóa item | Dùng để quyết định action delete theo category. |
-| Items | `POST /items` | Thêm item | FE không gửi `numOfTrans`. |
-| Items | `PUT /items/{id}` | Sửa item | FE không gửi `numOfTrans`. |
-| Items | `DELETE /items/{id}` | Xóa item | Soft delete phía BE; FE refresh list. |
-| Transactions | `POST /transactions` | Nhập/xuất/điều chỉnh | Body `{ itemId, type, qty, note }`; response cần `newQty`. |
-| History | `GET /transactions?limit=50&page={p}&types=in,out` | Lịch sử xuất nhập | Cần `data[]` + `pagination`. |
-| History | `GET /transactions?limit=50&page={p}&type=adj` | Lịch sử điều chỉnh | Cùng form, filter khác type. |
-| Users | `GET /users` | Quản lý user | List user + role. |
-| Users | `GET /users/roles` | Dropdown role | BE đã lọc role admin cho non-admin. |
-| Users | `POST /users` | Tạo user | Body `{ roleId, name, username, password }`. |
-| Users | `PUT /users/{id}` | Sửa user | Body subset user editable fields. |
-| Users | `DELETE /users/{id}` | Xóa user | Soft delete phía BE. |
+| Nhóm | Endpoint | FE dùng để |
+|---|---|---|
+| Auth | `POST /auth/login` | Đăng nhập; cần token, user, permissions, `allowedCategoryIds`. |
+| Auth | `GET /auth/me` | Hydrate user hiện tại. |
+| Auth | `POST /auth/refresh` | API client refresh access token. |
+| Auth | `POST /auth/logout` | Đăng xuất session hiện tại. |
+| Auth | `POST /auth/change-password` | Modal đổi mật khẩu trong user menu. |
+| Settings | `GET /settings` | Admin đọc `hideStock.enabled`. |
+| Settings | `PATCH /settings/hide-stock` | Admin toggle với body `{ enabled: boolean }`. |
+| Items | `GET /items` | Bảng hàng hóa và dữ liệu tìm hàng trong form giao dịch. |
+| Items | `GET /items?search={term}&limit=20` | Search item server-side. |
+| Items | `GET /items?code={code}` | Fallback QR/code lookup. |
+| Items | `GET /items/popular?limit=30&categoryCodes=R,N` | Tab hương liệu phổ biến. |
+| Items | `POST /items/recompute-transaction-counts` | User `hai`; BE vẫn admin-only. |
+| Items | `GET /items/categories?action=create\|edit\|delete` | Quyền category cho UI thêm/sửa/xóa. |
+| Items | `POST /items` | Tạo item. |
+| Items | `PUT /items/{id}` | Sửa item. |
+| Items | `DELETE /items/{id}` | Soft delete item rồi refresh list. |
+| Transactions | `POST /transactions` | Tạo phiếu in/out/adj; response cần `newQty`. |
+| Transactions | `POST /transactions/{id}/reverse` | Thu hồi giao dịch cuối trong form transaction. |
+| History | `GET /transactions?limit=50&page={p}&types=in,out` | Lịch sử xuất/nhập. |
+| History | `GET /transactions?limit=50&page={p}&type=adj` | Lịch sử điều chỉnh. |
+| Users | `GET /users` | Danh sách user. |
+| Users | `GET /users/roles` | Dropdown role. |
+| Users | `POST /users` | Tạo user. |
+| Users | `PUT /users/{id}` | Sửa user. |
+| Users | `DELETE /users/{id}` | Soft delete user. |
 
-## Contract trọng yếu
+## Shape Quan Trọng
 
 ### `ApiItem`
-
-FE kỳ vọng item có tối thiểu:
 
 ```ts
 {
@@ -58,102 +55,65 @@ FE kỳ vọng item có tối thiểu:
   code: string;
   name: string;
   unit: string;
-  qty: number;
+  qty: number | null;
   unitPrice: number;
-  minQty: number;
+  minQty: number | null;
   numOfTrans: number;
   isActive: boolean;
-  category: { id: number; code: string; name: string };
+  stockHidden?: boolean;
+  category: { id: number; code: string; name: string; description?: string | null };
 }
 ```
 
-`numOfTrans` là counter cache do BE cập nhật khi tạo/reverse transaction. FE đọc field này cho tab popular và cột “Số giao dịch”; không dùng `transactionCount`.
+Khi bật Ẩn tồn kho cho user `warehouse`, `qty` và `minQty` là `null`. FE phải render `NA`, không coi là `0`.
 
-### Recompute `numOfTrans`
-
-FE chỉ hiển thị nút này cho user có `username === "hai"`. BE vẫn enforce quyền bằng `roleCode === "admin"`.
-
-```http
-POST /api/v1/items/recompute-transaction-counts
-```
-
-Response:
+### `ApiTransaction`
 
 ```ts
 {
-  totalItems: number;
-  updatedItems: number;
-}
-```
-
-Endpoint đồng bộ `items.num_of_trans` từ `COUNT(*) FROM transactions GROUP BY itemId`. Nó không tạo transaction mới, không đổi `items.qty`, không sửa/xóa history, không phụ thuộc category access. BE check trực tiếp `roleCode === "admin"` và dùng advisory lock chung với create/reverse transaction. DB runtime phải đã apply migration thêm cột `items.num_of_trans`.
-
-FE hiển thị lỗi riêng cho recompute:
-
-- `403`: user đang đăng nhập không có role admin ở BE.
-- `404`: BE runtime chưa có route hoặc chưa restart/deploy bản mới.
-- `5xx`: ưu tiên kiểm tra migration `items.num_of_trans` và version BE đang chạy.
-
-### `POST /transactions`
-
-```ts
-{
+  id: number;
   itemId: number;
   type: "in" | "out" | "adj";
   qty: number;
-  note: string;
+  stockBefore: number | null;
+  stockHidden?: boolean;
+  newQty?: number | null;
+  item: ApiItem;
+  user: { id: number; name: string; username?: string };
 }
 ```
 
-- `in`/`out`: `qty > 0`.
-- `adj`: `qty >= 0`.
-- Response cần `newQty`.
-- UX success: nhập/xuất hiển thị số lượng phát sinh + tồn kho mới; điều chỉnh hiển thị tồn kho cũ => tồn kho mới.
+Khi tồn kho bị ẩn, `stockBefore` và `newQty` có thể là `null`; các cột Before/After/Balance render `NA`.
 
-### History pagination
-
-FE dùng chung form history nhưng query khác:
-
-- Xuất nhập: `limit=50&page={p}&types=in,out`
-- Điều chỉnh: `limit=50&page={p}&type=adj`
-- Date filter nếu có: `from={yyyy-mm-dd}T00:00:00.000`, `to={yyyy-mm-dd}T23:59:59.999`
-
-Response cần:
+### Settings
 
 ```ts
 {
-  data: ApiTransaction[];
-  pagination: { total: number; page: number; limit: number; totalPages: number };
+  hideStock: {
+    enabled: boolean;
+  };
 }
 ```
 
-## Hàng hóa tabs
+Chỉ admin thấy dòng **Cài đặt** trong menu user và truy cập được màn settings.
 
-| Tab | Data source | Rule |
-|---|---|---|
-| `Kho Hương liệu` | `GET /items` | FE lọc category code `R/N`; tab count không có ngoặc. |
-| `Hương liệu phổ biến (T30)` | `GET /items/popular?limit=30&categoryCodes=R,N` | Không hiển thị count trên tab; table dùng `numOfTrans`. |
-| `Hóa đơn` | `GET /items` | FE lọc category code `I`; tab count không có ngoặc. |
+## Ghi Chú Theo Tính Năng
 
-Sau create/update/delete item, FE reload list và invalidate popular cache. Nếu đang ở tab popular thì reload lại popular.
+| Tính năng | Contract |
+|---|---|
+| Tab hàng hóa | Hương liệu lọc category `R/N`; Hóa đơn lọc category `H`; Popular gọi `/items/popular` và dùng `numOfTrans`. |
+| Recompute `numOfTrans` | FE chỉ hiện nút cho username `hai`; BE enforce role admin. |
+| Submit transaction | Body `{ itemId, type, qty, note }`; FE yêu cầu `note` cho mọi loại transaction. |
+| Success transaction | Cập nhật selected item bằng `newQty`; nếu `newQty` là `null`, giữ trạng thái hidden và render `NA`. |
+| Date filter history | Gửi `from={yyyy-mm-dd}T00:00:00.000`, `to={yyyy-mm-dd}T23:59:59.999`. |
+| QR | Login QR điền username; item QR chấp nhận `ITEM-H0001` và `H0001`. |
+| Dashboard | BE có `GET /transactions/summary`, nhưng FE dashboard hiện chưa phụ thuộc endpoint này. |
 
-## Dashboard
+## Cần Theo Dõi
 
-BE có `GET /transactions/summary`, nhưng FE dashboard hiện chưa render KPI đầy đủ. Đây là endpoint planned/available, không phải dependency runtime bắt buộc hiện tại.
-
-## QR
-
-QR scanner không cần endpoint riêng:
-
-- Login QR chỉ điền username.
-- Transaction QR map code vào item list đã load.
-- Nếu không tìm thấy item trong list, FE có thể fallback `GET /items?code={code}`.
-
-## Cần theo dõi
-
-| Vấn đề | Loại | Ghi chú |
-|---|---|---|
-| Item list cho transaction đang dựa trên `canView` + permission transaction global | Monitor | Nếu sau này quyền nhập/xuất/điều chỉnh tách theo category, cần contract mới để biết item nào thao tác được. |
-| Dashboard KPI chưa render đầy đủ | Planned | BE đã có `/transactions/summary`. |
-| Filter history theo `userId`/`search` | Optional | BE hiện có `type/types`, `itemId`, `from`, `to`, `page`, `limit`; UI chưa cần `userId/search`. |
-| Token trong `sessionStorage` | Tech debt | Tốt hơn `localStorage` về persistence, nhưng vẫn đọc được bởi JS nếu có XSS; hardening tối đa nên cân nhắc HttpOnly cookie. |
+| Chủ đề | Trạng thái |
+|---|---|
+| Quyền transaction theo category | Monitor: form đang dựa vào item visibility + permission transaction global. Nếu tách quyền theo category, cần contract mới. |
+| Dashboard KPI | Planned: BE có summary endpoint, màn FE vẫn tối giản. |
+| History search/user filter | Optional: UI chưa cần `userId` hoặc text search. |
+| Auth hardening | Tech debt: `sessionStorage` tốt hơn local persistent token, nhưng HttpOnly cookie/session sẽ cứng hơn. |
